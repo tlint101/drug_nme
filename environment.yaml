@@ -10,3 +10,5 @@ dependencies:
       - notebook
       - pandas
       - tqdm
+      - tabula-py
+      - JPype1
