@@ -32,7 +32,7 @@ class Extract:
 
         return pdf_links
 
-    def get_archive_links(self, url: str = None):
+    def get_archive_pdf_links(self, url: str = None):
         """
         Obtain pdf links for archived years.
         :param url:
@@ -48,13 +48,32 @@ class Extract:
         # Find all links in the webpage
         links = soup.find_all('a', href=True)
 
-        # Filter out links that end with .pdf
-        pages = [link['href'] for link in links if 'download' in link['href']]
+        # Obtain links to PDFs, but remove the unwanted junk link
+        pdf_links = []
+        unwanted_text = "Comparison of NMEs approved in 2010 to previous years"
 
-        # Handle relative URLs
-        pdf_links = [link if link.startswith('http') else 'https://wayback.archive-it.org' + link for link in pages]
+        for link in links:
+            href = link['href']
+            if href.endswith('.pdf') and unwanted_text not in link.text:
+                # Handle relative URLs
+                pdf_link = href if href.startswith('http') else 'https://wayback.archive-it.org' + href
+                pdf_links.append(pdf_link)
 
         return pdf_links
+
+    def get_archive_tables(self, url: str = None):
+        """
+        Obtain tables from archived years.
+        :param url:
+        :return:
+        """
+        pass
+
+    """
+    Extracted information is given as a list of tables. This is because the table is split across multiple pages. The information needs to be concat together. 
+
+    **NOTE:** The first row table will be page headers and start dates. This is not needed and can be removed. 
+    """
 
     def extract_table(self, url: str = None):
         """
@@ -76,6 +95,16 @@ class Extract:
         # Drop row for BLA header
         data_df = data_df.drop(data_df[data_df['APPLICATION NUMBER'] == 'BLA NUMBER'].index)
 
-        data_df = data_df.dropna()
+        # Drop columns or rows where all elements are NaN
+        data_df = data_df.dropna(axis=1, how='all')
+        data_df = data_df.dropna(axis=0, how='all')
 
         return data_df
+
+    def get_current_year(self, url: str = None):
+        """
+        Get approvals for current year.
+        :param url:
+        :return:
+        """
+        pass
