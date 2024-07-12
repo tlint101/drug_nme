@@ -31,8 +31,11 @@ class PharmacologyDataFetcher:
         json_data = self._download_json_with_progress(url)
         df = pd.DataFrame(json_data)
 
-        return df
+        filter_df = df[['ligandId', 'name', 'type', 'approved', 'whoEssential', 'immuno', 'antibacterial', 'approvalSource']]
 
+        return filter_df
+
+    # todo document information!
     @staticmethod
     def _download_json_with_progress(url):
         # Send a GET request to the URL
@@ -45,7 +48,7 @@ class PharmacologyDataFetcher:
         data = b''
 
         # Use tqdm to display the progress bar
-        for chunk in tqdm(response.iter_content(1024), total=total_size // 1024, unit='KB'):
+        for chunk in tqdm(response.iter_content(1024), total=total_size // 1024, unit='KB', desc='Downloading Data'):
             # Accumulate the data chunks
             data += chunk
 
