@@ -59,7 +59,10 @@ class Extract:
                 pdf_link = href if href.startswith('http') else 'https://wayback.archive-it.org' + href
                 pdf_links.append(pdf_link)
 
-        return pdf_links
+        if len(pdf_links) == 0:
+            raise ValueError("No pdf links found! May be download or archival issues. Try again later.")
+        else:
+            return pdf_links
 
     def get_archive_tables(self, url: str = None):
         """
@@ -102,8 +105,33 @@ class Extract:
 
             return data_df
 
+        # Different year may have different format. Use this exception if issues occur.
         except:
-            print("There is an exception!")
+            tables = tabula.read_pdf(url, pages='all', lattice=True, pandas_options={"header": [0, 1]},
+                                     multiple_tables=False)
+
+            df = pd.concat(tables, ignore_index=True)  # Do not use table[0] becuase it is junk
+
+            header = df.columns.tolist()  # Grab the first row for the header
+
+            rows = []
+
+            # Iterate through each tuple and create a row
+            for header, value in header:
+                rows.append({
+                    'Header': header,
+                    'Value': value
+                })
+
+            # Create a dataframe from the list of rows
+            df = pd.DataFrame(rows)
+
+            df = df.set_index('Header').transpose().reset_index(drop=True)
+
+            data_df = df.replace(to_replace=r'\r', value=' ', regex=True)  # replace the '\r' string with a space
+
+
+            return data_df
 
     def get_current_year(self, url: str = None):
         """
