@@ -73,7 +73,8 @@ class Extract:
         pass
 
     """
-    Extracted information is given as a list of tables. This is because the table is split across multiple pages. The information needs to be concat together. 
+    Extracted information is given as a list of tables. This is because the table is split across multiple pages. 
+    The information needs to be concat together. 
 
     **NOTE:** The first row table will be page headers and start dates. This is not needed and can be removed. 
     """
