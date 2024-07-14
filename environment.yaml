@@ -12,3 +12,4 @@ dependencies:
       - tqdm
       - tabula-py
       - JPype1
+      - altair[all] == 5.3.0
