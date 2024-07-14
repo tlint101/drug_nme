@@ -35,9 +35,15 @@ class PharmacologyDataFetcher:
 
         return filter_df
 
-    # todo document information!
     @staticmethod
     def _download_json_with_progress(url):
+        """
+        Support function to download the json file and add a progress bar.
+        :param url: str
+            Link to download the json file.
+        :return: json_data
+        """
+
         # Send a GET request to the URL
         response = requests.get(url, stream=True)
 
