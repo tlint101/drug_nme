@@ -6,7 +6,10 @@ Additional information on their API can be found here: https://www.guidetopharma
 import requests
 import pandas as pd
 from tqdm import tqdm
+import zipfile
+import io
 import json
+
 
 class PharmacologyDataFetcher:
     def __init__(self, url: str = None):
@@ -28,22 +31,55 @@ class PharmacologyDataFetcher:
         # # Convert to DataFrame
         # df = pd.DataFrame(data['ligands'])
 
-        json_data = self._download_json_with_progress(url)
+        json_data = _download_json_with_progress(url, type='guide')
         df = pd.DataFrame(json_data)
 
-        filter_df = df[['ligandId', 'name', 'type', 'approved', 'whoEssential', 'immuno', 'antibacterial', 'approvalSource']]
+        # filter_df = df[
+        #     ['ligandId', 'name', 'type', 'approved', 'whoEssential', 'immuno', 'antibacterial', 'approvalSource']]
+
+        return df
+
+
+class FDAFetcher:
+    def __init__(self, url: str = None):
+        # set link to OpenFDA
+        if url is None:
+            self.url = "https://download.open.fda.gov/drug/drugsfda/drug-drugsfda-0001-of-0001.json"
+
+    def get_data(self, url: str = None):
+        """
+
+        :param url:
+        :return:
+        """
+        # # Fetch the data
+        url = self.url
+        # response = requests.get(url)
+        # data = response.json()
+        #
+        # # Convert to DataFrame
+        # df = pd.DataFrame(data['ligands'])
+
+        json_data = _download_json_with_progress(url, type='fda')
+        df = pd.DataFrame(json_data)
+
+        filter_df = df[
+            ['ligandId', 'name', 'type', 'approved', 'whoEssential', 'immuno', 'antibacterial', 'approvalSource']]
 
         return filter_df
 
-    @staticmethod
-    def _download_json_with_progress(url):
-        """
-        Support function to download the json file and add a progress bar.
-        :param url: str
-            Link to download the json file.
-        :return: json_data
-        """
 
+def _download_json_with_progress(url, type: str = None):
+    """
+    Support function to download the json file and add a progress bar.
+    :param url: str
+        Link to download the json file.
+    :param type: str
+        Describe information source. Can be "guide" (Guide to Pharmacology) or "fda" (OpenFDA).
+    :return: json_data
+    """
+
+    if type == 'guide':
         # Send a GET request to the URL
         response = requests.get(url, stream=True)
 
@@ -54,7 +90,7 @@ class PharmacologyDataFetcher:
         data = b''
 
         # Use tqdm to display the progress bar
-        for chunk in tqdm(response.iter_content(1024), total=total_size // 1024, unit='KB', desc='Downloading Data'):
+        for chunk in tqdm(response.iter_content(1024), total=total_size // 1024, unit='KB', desc='Downloading Data From Guide To Pharmacology'):
             # Accumulate the data chunks
             data += chunk
 
@@ -62,3 +98,8 @@ class PharmacologyDataFetcher:
         json_data = json.loads(data.decode('utf-8'))
 
         return json_data
+
+    elif type == 'fda':
+        pass
+
+        return None
