@@ -3,6 +3,7 @@ Script to obtain information using GuideToPharmacology API
 Additional information on their API can be found here: https://www.guidetopharmacology.org/webServices.jsp
 """
 
+import re
 import requests
 import pandas as pd
 from tqdm import tqdm
@@ -22,23 +23,72 @@ class PharmacologyDataFetcher:
         if url is None:
             self.url = "https://www.guidetopharmacology.org/services/ligands?type=Approved"
 
-    def get_data(self, url: str = None):
+    def get_data(self, url: str = None, agency: str = 'all'):
         """
         Get data from Guide to Pharmacology API and convert into pd.DataFrame.
-        :param url:
+        :param url: str
+            Input string to get data from. If None, it will default to Guide to Pharmacology json link set in the
+            __init__.
         :return:
         """
 
         # Fetch data
-        url = self.url
+        if url is None:
+            url = self.url
 
         json_data = _download_json_with_progress(url, type='guide')
-        df = pd.DataFrame(json_data)
+        json_df = pd.DataFrame(json_data)
 
-        # filter_df = df[
-        #     ['ligandId', 'name', 'type', 'approved', 'whoEssential', 'immuno', 'antibacterial', 'approvalSource']]
+        approval_df = json_df['approvalSource'].apply(self._process_approvalSource_col, args=(agency,))
 
-        return df
+        data_df = pd.concat([json_df, approval_df], axis=1)
+
+        return data_df
+
+    def _process_approvalSource_col(self, text, agency: str = 'all'):
+        """
+        Process string data from Guide to Pharmacology API JSON file. This will take the approvalSource column and split
+        it by indicated year. By default, information will be split by FDA, EMA, Japan, and China.
+        :param text:
+            Guide to Pharmacology API JSON file format.
+        :param agency: str
+            Set the country agency of interest as output.
+        :return:
+        """
+
+        # Split by parentheses
+        parts = re.split(r'\(|\)', text)
+        # Clean and strip parts
+        parts = [part.strip(', ') for part in parts if part]
+
+        result = {}
+
+        # Process each part
+        for i in range(0, len(parts), 2):
+            if i + 1 < len(parts):  # Ensure there's a year part
+                entities = parts[i]
+                year = parts[i + 1]
+
+                # Default uses large markets. If not, change countries
+                if agency == 'all':
+                    if 'FDA' in entities:
+                        result['FDA'] = entities
+                        result['FDA_year'] = year
+                    if 'EMA' in entities:
+                        result['EMA'] = entities
+                        result['EMA_year'] = year
+                    if 'Japan' in entities:
+                        result['Japan'] = entities
+                        result['Japan_year'] = year
+                    if 'China' in entities:
+                        result['China'] = entities
+                        result['China_year'] = year
+                else:
+                    if agency in entities:
+                        result[agency] = entities
+                        result[f'{agency}_year'] = year
+
+        return pd.Series(result)
 
 
 class FDADataFetcher:
@@ -56,11 +106,14 @@ class FDADataFetcher:
     def get_data(self, url: str = None):
         """
 
-        :param url:
+        :param url: str
+            Input string to get data from. If None, it will default to openFDA json link set in the __init__.
         :return:
         """
-        # # Fetch the data
-        url = self.url
+
+        # Fetch data
+        if url is None:
+            url = self.url
 
         json_data = _download_json_with_progress(url, type='fda')
 
