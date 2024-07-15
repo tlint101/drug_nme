@@ -40,7 +40,7 @@ class PharmacologyDataFetcher:
         return df
 
 
-class FDAFetcher:
+class FDADataFetcher:
     def __init__(self, url: str = None):
         # set link to OpenFDA
         if url is None:
