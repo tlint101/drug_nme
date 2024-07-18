@@ -39,13 +39,18 @@ class PharmacologyDataFetcher:
         json_data = _download_json_with_progress(url, type='guide')
         json_df = pd.DataFrame(json_data)
 
-        approval_df = json_df['approvalSource'].apply(self._process_approvalSource_col, args=(agency,))
+        approval_df = json_df['approvalSource'].apply(self._split_agency, args=(agency,))
 
         data_df = pd.concat([json_df, approval_df], axis=1)
 
+        # drop columns by name
+        col_to_drop = ['abbreviation', 'inn', 'species', 'radioactive', 'labelled', 'immuno', 'malaria',
+                       'antibacterial', 'subunitIds', 'complexIds', 'prodrugIds', 'activeDrugIds']
+        processed_df = data_df.drop(columns=col_to_drop)
+
         return data_df
 
-    def _process_approvalSource_col(self, text, agency: str = 'all'):
+    def _split_agency(self, text, agency: str or list = 'all'):
         """
         Process string data from Guide to Pharmacology API JSON file. This will take the approvalSource column and split
         it by indicated year. By default, information will be split by FDA, EMA, Japan, and China.
@@ -61,7 +66,12 @@ class PharmacologyDataFetcher:
         # Clean and strip parts
         parts = [part.strip(', ') for part in parts if part]
 
-        result = {}
+        #todo add caps for agency or cap for countries only?
+        # # ensure agency is all caps
+        # agency = agency.upper()
+        # Full caps on agency, single cap on country if/else statement
+
+        download_result = {}
 
         # Process each part
         for i in range(0, len(parts), 2):
@@ -72,23 +82,25 @@ class PharmacologyDataFetcher:
                 # Default uses large markets. If not, change countries
                 if agency == 'all':
                     if 'FDA' in entities:
-                        result['FDA'] = entities
-                        result['FDA_year'] = year
+                        download_result['FDA'] = entities
+                        download_result['FDA_year'] = year
                     if 'EMA' in entities:
-                        result['EMA'] = entities
-                        result['EMA_year'] = year
+                        download_result['EMA'] = entities
+                        download_result['EMA_year'] = year
                     if 'Japan' in entities:
-                        result['Japan'] = entities
-                        result['Japan_year'] = year
+                        download_result['Japan'] = entities
+                        download_result['Japan_year'] = year
                     if 'China' in entities:
-                        result['China'] = entities
-                        result['China_year'] = year
+                        download_result['China'] = entities
+                        download_result['China_year'] = year
                 else:
                     if agency in entities:
-                        result[agency] = entities
-                        result[f'{agency}_year'] = year
+                        download_result[agency] = entities
+                        download_result[f'{agency}_year'] = year
 
-        return pd.Series(result)
+        result_df = pd.Series(download_result)
+
+        return result_df
 
 
 class FDADataFetcher:
