@@ -46,7 +46,7 @@ class PharmacologyDataFetcher:
 
         agency_list = [self._check_agency_input(x) for x in agency]
 
-
+        # Download JSON data
         json_data = _download_json_with_progress(url, type='guide')
         json_df = pd.DataFrame(json_data)
 
@@ -68,9 +68,16 @@ class PharmacologyDataFetcher:
         data_df = pd.concat([json_df, results], axis=1)
 
         # drop columns by name
+        #todo drop approvalSource column after checking
         col_to_drop = ['abbreviation', 'inn', 'species', 'radioactive', 'labelled', 'immuno', 'malaria',
                        'antibacterial', 'subunitIds', 'complexIds', 'prodrugIds', 'activeDrugIds']
-        processed_df = data_df.drop(columns=col_to_drop)
+        processed_df = data_df.drop(columns=col_to_drop).copy()
+
+        # Drop where approvalSource is None
+        processed_df = processed_df.mask(processed_df.eq('None'))  # replace NaN with None
+        processed_df = processed_df.dropna()  # Drop values with None
+
+        # processed_df = processed_df.drop(columns=['approvalSource'])
 
         return processed_df
 
