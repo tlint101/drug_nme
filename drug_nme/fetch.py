@@ -76,6 +76,8 @@ class PharmacologyDataFetcher:
 
     # Function to extract approval source and year
     def _extract_approval_info(self, source_str, source_name):
+        "Extract relevant agency or country name from approvalSource column"
+
         pattern = re.compile(rf"{source_name}\s*\((\d{{4}})[^)]*\)")
         match = pattern.search(source_str)
         if match:
@@ -85,6 +87,8 @@ class PharmacologyDataFetcher:
         return None, None
 
     def _check_agency_input(self, agency: str = None):
+        "Conditional check for capitalization by agency or country"
+
         if agency.lower() == 'fda':
             return 'FDA'
         elif agency.lower() == 'ema':
