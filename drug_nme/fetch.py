@@ -40,21 +40,25 @@ class PharmacologyDataFetcher:
         if url is None:
             url = self.url
 
+        # Check agency input type
+        if isinstance(agency, str):
+            agency = [agency]
+
+        agency_list = [self._check_agency_input(x) for x in agency]
+
+
         json_data = _download_json_with_progress(url, type='guide')
         json_df = pd.DataFrame(json_data)
 
         results = pd.DataFrame(index=json_df.index)
 
-        if isinstance(agency, str):
-            agency = [agency]
-
-        # Apply the extract_approval_info function for each source
-        for source in agency:
+        # Apply the extract_approval_info function for each query
+        for query in agency_list:
             # Apply the function to each row
-            extracted_info = json_df['approvalSource'].apply(self._extract_approval_info, args=(source,))
+            extracted_info = json_df['approvalSource'].apply(self._extract_approval_info, args=(query,))
             # Separate the results into two columns
-            results[source] = extracted_info.apply(lambda x: x[0])
-            results[f"{source}_year"] = extracted_info.apply(lambda x: x[1])
+            results[query] = extracted_info.apply(lambda x: x[0])
+            results[f"{query}_year"] = extracted_info.apply(lambda x: x[1])
 
         # approval_df = json_df['approvalSource'].apply(self._split_agency, args=(agency,))
         #
@@ -79,6 +83,16 @@ class PharmacologyDataFetcher:
         elif source_name in source_str:
             return source_name, None
         return None, None
+
+    def _check_agency_input(self, agency: str = None):
+        if agency.lower() == 'fda':
+            return 'FDA'
+        elif agency.lower() == 'ema':
+            return 'EMA'
+        elif agency.lower() == 'uk':
+            return 'UK'
+        else:
+            return agency.capitalize()
 
     def _split_agency(self, text, agency: str or list = 'all'):
         """
