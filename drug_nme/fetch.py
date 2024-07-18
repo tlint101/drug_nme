@@ -23,12 +23,16 @@ class PharmacologyDataFetcher:
         if url is None:
             self.url = "https://www.guidetopharmacology.org/services/ligands?type=Approved"
 
-    def get_data(self, url: str = None, agency: str = 'FDA'):
+    def get_data(self, url: str = None, agency: str or list = 'FDA'):
         """
         Get data from Guide to Pharmacology API and convert into pd.DataFrame.
         :param url: str
             Input string to get data from. If None, it will default to Guide to Pharmacology json link set in the
             __init__.
+        :param agency: str or list
+            Input agency name to get data from. A list can be input or the name of a specific agency, i.e. ['FDA',
+            'EMA'].
+            Default to FDA.
         :return:
         """
 
@@ -92,7 +96,7 @@ class PharmacologyDataFetcher:
         # Clean and strip parts
         parts = [part.strip(', ') for part in parts if part]
 
-        #todo add caps for agency or cap for countries only?
+        # todo add caps for agency or cap for countries only?
         # # ensure agency is all caps
         # agency = agency.upper()
         # Full caps on agency, single cap on country if/else statement
