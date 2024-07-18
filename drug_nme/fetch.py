@@ -94,58 +94,6 @@ class PharmacologyDataFetcher:
         else:
             return agency.capitalize()
 
-    def _split_agency(self, text, agency: str or list = 'all'):
-        """
-        Process string data from Guide to Pharmacology API JSON file. This will take the approvalSource column and split
-        it by indicated year. By default, information will be split by FDA, EMA, Japan, and China.
-        :param text:
-            Guide to Pharmacology API JSON file format.
-        :param agency: str
-            Set the country agency of interest as output.
-        :return:
-        """
-
-        # Split by parentheses
-        parts = re.split(r'\(|\)', text)
-        # Clean and strip parts
-        parts = [part.strip(', ') for part in parts if part]
-
-        # todo add caps for agency or cap for countries only?
-        # # ensure agency is all caps
-        # agency = agency.upper()
-        # Full caps on agency, single cap on country if/else statement
-
-        download_result = {}
-
-        # Process each part
-        for i in range(0, len(parts), 2):
-            if i + 1 < len(parts):  # Ensure there's a year part
-                entities = parts[i]
-                year = parts[i + 1]
-
-                # Default uses large markets. If not, change countries
-                if agency == 'all':
-                    if 'FDA' in entities:
-                        download_result['FDA'] = entities
-                        download_result['FDA_year'] = year
-                    if 'EMA' in entities:
-                        download_result['EMA'] = entities
-                        download_result['EMA_year'] = year
-                    if 'Japan' in entities:
-                        download_result['Japan'] = entities
-                        download_result['Japan_year'] = year
-                    if 'China' in entities:
-                        download_result['China'] = entities
-                        download_result['China_year'] = year
-                else:
-                    if agency in entities:
-                        download_result[agency] = entities
-                        download_result[f'{agency}_year'] = year
-
-        result_df = pd.Series(download_result)
-
-        return result_df
-
 
 class FDADataFetcher:
     def __init__(self, url: str = None):
