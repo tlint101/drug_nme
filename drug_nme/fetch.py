@@ -23,7 +23,7 @@ class PharmacologyDataFetcher:
         if url is None:
             self.url = "https://www.guidetopharmacology.org/services/ligands?type=Approved"
 
-    def get_data(self, url: str = None, agency: str = 'all'):
+    def get_data(self, url: str = None, agency: str = 'FDA'):
         """
         Get data from Guide to Pharmacology API and convert into pd.DataFrame.
         :param url: str
@@ -39,16 +39,42 @@ class PharmacologyDataFetcher:
         json_data = _download_json_with_progress(url, type='guide')
         json_df = pd.DataFrame(json_data)
 
-        approval_df = json_df['approvalSource'].apply(self._split_agency, args=(agency,))
+        results = pd.DataFrame(index=json_df.index)
 
-        data_df = pd.concat([json_df, approval_df], axis=1)
+        if isinstance(agency, str):
+            agency = [agency]
+
+        # Apply the extract_approval_info function for each source
+        for source in agency:
+            # Apply the function to each row
+            extracted_info = json_df['approvalSource'].apply(self._extract_approval_info, args=(source,))
+            # Separate the results into two columns
+            results[source] = extracted_info.apply(lambda x: x[0])
+            results[f"{source}_year"] = extracted_info.apply(lambda x: x[1])
+
+        # approval_df = json_df['approvalSource'].apply(self._split_agency, args=(agency,))
+        #
+        # data_df = pd.concat([json_df, approval_df], axis=1)
+
+        # Combine the results with the original DataFrame
+        data_df = pd.concat([json_df, results], axis=1)
 
         # drop columns by name
         col_to_drop = ['abbreviation', 'inn', 'species', 'radioactive', 'labelled', 'immuno', 'malaria',
                        'antibacterial', 'subunitIds', 'complexIds', 'prodrugIds', 'activeDrugIds']
         processed_df = data_df.drop(columns=col_to_drop)
 
-        return data_df
+        return processed_df
+
+    # Function to extract approval source and year
+    def _extract_approval_info(self, source_str, source_name):
+        pattern = re.compile(rf"{source_name}\s*\((\d{{4}})[^)]*\)")
+        match = pattern.search(source_str)
+        if match:
+            return source_name, match.group(1)
+        elif source_name in source_str:
+            return source_name, None
+        return None, None
 
     def _split_agency(self, text, agency: str or list = 'all'):
         """
