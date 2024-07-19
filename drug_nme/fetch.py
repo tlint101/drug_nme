@@ -61,22 +61,22 @@ class PharmacologyDataFetcher:
             results[query] = extracted_info.apply(lambda x: x[0] if x else None)
             results[f"{query}_year"] = extracted_info.apply(lambda x: x[1] if x else None)
 
-        # approval_df = json_df['approvalSource'].apply(self._split_agency, args=(agency,))
-        #
-        # data_df = pd.concat([json_df, approval_df], axis=1)
-
         # Combine the results with the original DataFrame
         data_df = pd.concat([json_df, results], axis=1)
 
         # drop columns by name
-        #todo drop approvalSource column after checking
         col_to_drop = ['abbreviation', 'inn', 'species', 'radioactive', 'labelled', 'immuno', 'malaria',
                        'antibacterial', 'subunitIds', 'complexIds', 'prodrugIds', 'activeDrugIds']
         processed_df = data_df.drop(columns=col_to_drop).copy()
 
         # Replace empty strings in approvalSource with "" and drop.
         processed_df.replace("", np.nan, inplace=True)
+
+        # # For troubleshooting, remove approvalSource from list above and run or comment this during testing
         processed_df = processed_df.dropna(subset='approvalSource')
+
+        # if columns after col7 are all None, remove the row
+        processed_df = processed_df.loc[~processed_df.iloc[:, 7:].isnull().all(axis=1)]
 
         return processed_df
 
