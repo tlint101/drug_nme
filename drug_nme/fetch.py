@@ -5,6 +5,7 @@ Additional information on their API can be found here: https://www.guidetopharma
 
 import re
 import requests
+import numpy as np
 import pandas as pd
 from tqdm import tqdm
 import zipfile
@@ -55,10 +56,10 @@ class PharmacologyDataFetcher:
         # Apply the extract_approval_info function for each query
         for query in agency_list:
             # Apply the function to each row
-            extracted_info = json_df['approvalSource'].apply(self._extract_approval_info, args=(query,))
+            extracted_info = json_df['approvalSource'].apply(lambda x: self._extract_approval_info(x, query))
             # Separate the results into two columns
-            results[query] = extracted_info.apply(lambda x: x[0])
-            results[f"{query}_year"] = extracted_info.apply(lambda x: x[1])
+            results[query] = extracted_info.apply(lambda x: x[0] if x else None)
+            results[f"{query}_year"] = extracted_info.apply(lambda x: x[1] if x else None)
 
         # approval_df = json_df['approvalSource'].apply(self._split_agency, args=(agency,))
         #
@@ -73,17 +74,14 @@ class PharmacologyDataFetcher:
                        'antibacterial', 'subunitIds', 'complexIds', 'prodrugIds', 'activeDrugIds']
         processed_df = data_df.drop(columns=col_to_drop).copy()
 
-        # Drop where approvalSource is None
-        processed_df = processed_df.mask(processed_df.eq('None'))  # replace NaN with None
-        processed_df = processed_df.dropna()  # Drop values with None
-
-        # processed_df = processed_df.drop(columns=['approvalSource'])
+        # Replace empty strings in approvalSource with "" and drop.
+        processed_df.replace("", np.nan, inplace=True)
+        processed_df = processed_df.dropna(subset='approvalSource')
 
         return processed_df
 
     # Function to extract approval source and year
     def _extract_approval_info(self, source_str, source_name):
-        "Extract relevant agency or country name from approvalSource column"
 
         pattern = re.compile(rf"{source_name}\s*\((\d{{4}})[^)]*\)")
         match = pattern.search(source_str)
