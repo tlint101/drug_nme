@@ -4,6 +4,7 @@ Additional information on their API can be found here: https://www.guidetopharma
 """
 
 import re
+import os
 import requests
 import numpy as np
 import pandas as pd
@@ -11,6 +12,7 @@ from tqdm import tqdm
 import zipfile
 from io import BytesIO
 import json
+from urllib.parse import urlparse
 
 
 class PharmacologyDataFetcher:
@@ -105,32 +107,44 @@ class PharmacologyDataFetcher:
 
 
 class FDADataFetcher:
-    def __init__(self, url: str = None):
+    def __init__(self, path: str = None):
         """
-        :param url: str
+        :param path: str
             Can be a URL link to the JSON file or file path to JSON file on hard disk. If None, will default to openFDA
             json.zip link.
         """
 
         # set link to openFDA
-        if url is None:
-            self.url = "https://download.open.fda.gov/drug/drugsfda/drug-drugsfda-0001-of-0001.json.zip"
+        if path is None:
+            self.path = "https://download.open.fda.gov/drug/drugsfda/drug-drugsfda-0001-of-0001.json.zip"
+        else:
+            self.path = path
 
-    def get_data(self, url: str = None):
+    def get_data(self, path: str = None):
         """
 
-        :param url: str
+        :param path: str
             Input string to get data from. If None, it will default to openFDA json link set in the __init__.
         :return:
         """
 
+        global url_type, json_data
+
         # Fetch data
-        if url is None:
-            url = self.url
+        if path is None:
+            path = self.path
+            # check input type
+            url_type = _path_or_url(path=path)
+        else:
+            url_type = _path_or_url(path=path)
 
-        json_data = _download_json_with_progress(url, type='fda')
+        # Check if input is a url or filepath to json file.
+        if url_type == 'url':
+            json_data = _download_json_with_progress(path, type='fda')
+        elif url_type == 'filepath':
+            json_data = _clean_fda_json(filepath=path)
 
-        # Initialize an empty list to store the flattened data
+            # Initialize an empty list to store the flattened data
         flattened_data = []
 
         # Iterate through the 'results' list
@@ -178,6 +192,25 @@ class FDADataFetcher:
         nme_df = nme_df.drop_duplicates(subset=['active_ingredient'])
 
         return nme_df
+
+
+"""
+The following are support functions for the FDA and Pharmacology Classes above 
+"""
+
+
+def _path_or_url(path: str = None):
+    """
+    Check if input string is a filepath or a url. Output will be a string
+    """
+    # Check if it's a file path
+    if os.path.isfile(path):
+        return "filepath"
+
+    # Check if it's a URL
+    parsed = urlparse(path)
+    if parsed.scheme in ('http', 'https', 'ftp') and bool(parsed.netloc):
+        return 'url'
 
 
 def _download_json_with_progress(url, type: str = None):
@@ -239,3 +272,18 @@ def _download_json_with_progress(url, type: str = None):
                 fda_data = json.loads(json_data)
 
         return fda_data
+
+
+def _clean_fda_json(filepath: str = None):
+    """
+    If openFDA json is downloaded and manually used, clean the junk headers as follows.
+    """
+    # Read the file and decode it as UTF-8
+    # Read the file as bytes
+    with open(filepath, 'rb') as file:
+        byte_data = file.read()
+
+    # Decode the byte string to UTF-8
+    json_data = json.loads(byte_data.decode('utf-8'))
+
+    return json_data
