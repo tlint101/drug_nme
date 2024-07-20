@@ -130,10 +130,9 @@ class FDADataFetcher:
 
         global url_type, json_data
 
-        # Fetch data
+        # Check input data as url or filepath
         if path is None:
             path = self.path
-            # check input type
             url_type = _path_or_url(path=path)
         else:
             url_type = _path_or_url(path=path)
@@ -199,20 +198,6 @@ The following are support functions for the FDA and Pharmacology Classes above
 """
 
 
-def _path_or_url(path: str = None):
-    """
-    Check if input string is a filepath or a url. Output will be a string
-    """
-    # Check if it's a file path
-    if os.path.isfile(path):
-        return "filepath"
-
-    # Check if it's a URL
-    parsed = urlparse(path)
-    if parsed.scheme in ('http', 'https', 'ftp') and bool(parsed.netloc):
-        return 'url'
-
-
 def _download_json_with_progress(url, type: str = None):
     """
     Support function to download the json file and add a progress bar.
@@ -274,12 +259,25 @@ def _download_json_with_progress(url, type: str = None):
         return fda_data
 
 
+def _path_or_url(path: str = None):
+    """
+    Check if input string is a filepath or a url. Output will be a string
+    """
+    # Check if filepath
+    if os.path.isfile(path):
+        return "filepath"
+
+    # Check if url
+    parsed = urlparse(path)
+    if parsed.scheme in ('http', 'https', 'ftp') and bool(parsed.netloc):
+        return 'url'
+
+
 def _clean_fda_json(filepath: str = None):
     """
     If openFDA json is downloaded and manually used, clean the junk headers as follows.
     """
-    # Read the file and decode it as UTF-8
-    # Read the file as bytes
+    # Read the file as bytes and decode as utf-8
     with open(filepath, 'rb') as file:
         byte_data = file.read()
 
