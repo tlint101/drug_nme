@@ -3,6 +3,7 @@ import pandas as pd
 from bs4 import BeautifulSoup
 import tabula
 
+__all__ = ["Extract"]
 
 class Extract:
     def __init__(self, url):
