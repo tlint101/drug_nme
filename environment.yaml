@@ -1,4 +1,4 @@
-name: fda-nme
+name: drug-nme
 
 channels:
   - conda-forge
@@ -11,4 +11,5 @@ dependencies:
       - tqdm
       - tabula-py
       - JPype1
-      - altair[all] == 5.3.0
+      - matplotlib
+      - seaborn
