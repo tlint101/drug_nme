@@ -1,4 +1,4 @@
-from .fetch import FDADataFetcher, PharmacologyDataFetcher
-from .plot import Plot
+from .fetch import *
+from .plot import *
 
-__all__ = ['FDADataFetcher', 'PharmacologyDataFetcher', 'Plot']
+__version__ = "0.0.1"

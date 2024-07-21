@@ -14,6 +14,8 @@ from io import BytesIO
 import json
 from urllib.parse import urlparse
 
+__all__ = ["FDADataFetcher", "PharmacologyDataFetcher"]
+
 
 class PharmacologyDataFetcher:
     def __init__(self, url: str = None):
