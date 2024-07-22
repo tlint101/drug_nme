@@ -3,11 +3,42 @@ import pandas as pd
 from bs4 import BeautifulSoup
 import tabula
 
-__all__ = ["Extract"]
+__all__ = ["Scrape"]
 
-class Extract:
-    def __init__(self, url):
-        self.url = url
+class Scrape:
+    def __init__(self, url: str = None):
+        """
+        Initialize Scrape class. Input requires link to Novel Drug Approvals at FDA.
+        """
+        if url is None:
+            self.url = 'https://www.fda.gov/drugs/development-approval-process-drugs/novel-drug-approvals-fda'
+        else:
+            self.url = url
+
+    def extract(self, url: str = None):
+        """
+        Obtain links from CDER.
+        """
+        if url is None:
+            url = self.url
+        else:
+            self.url = url
+
+        site = requests.get(self.url)
+        soup = BeautifulSoup(site.content, 'html.parser')
+
+        # Find all links in the webpage
+        # links = soup.find_all('a', href=True)
+
+        links = soup.find_all(name = 'iframe',href=True)
+
+        # Filter out links that end with .pdf
+        pages = [link['href'] for link in links if 'download' in link['href']]
+
+        # Handle relative URLs
+        pdf_links = [link if link.startswith('http') else 'https://www.fda.gov' + link for link in pages]
+
+        return links
 
     def get_pdf_links(self, url: str = None):
         """
@@ -18,8 +49,10 @@ class Extract:
         """
         if url is None:
             url = self.url
+        else:
+            self.url = url
 
-        site = requests.get(self.url)
+        site = requests.get(url)
         soup = BeautifulSoup(site.content, 'html.parser')
 
         # Find all links in the webpage
@@ -31,7 +64,7 @@ class Extract:
         # Handle relative URLs
         pdf_links = [link if link.startswith('http') else 'https://www.fda.gov' + link for link in pages]
 
-        return pdf_links
+        return pdf_links, links
 
     def get_archive_pdf_links(self, url: str = None):
         """
