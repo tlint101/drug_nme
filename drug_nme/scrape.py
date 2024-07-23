@@ -28,36 +28,11 @@ class FDAScraper:
         else:
             self.latest_link = latest_link
 
+        # Set instance variable
+        self.link_dict = None
+
     def get_compilation(self, url: str):
         pass
-
-    def get_latest(self):
-        pass
-
-    def extract(self, url: str = None):
-        """
-        Obtain PDF links of approvals from CDER.
-        """
-        if url is None:
-            url = self.url
-        else:
-            self.url = url
-
-        site = requests.get(self.url)
-        soup = BeautifulSoup(site.content, 'html.parser')
-
-        # Find all links in the webpage
-        # links = soup.find_all('a', href=True)
-
-        links = soup.find_all(name='iframe', href=True)
-
-        # Filter out links that end with .pdf
-        pages = [link['href'] for link in links if 'download' in link['href']]
-
-        # Handle relative URLs
-        pdf_links = [link if link.startswith('http') else 'https://www.fda.gov' + link for link in pages]
-
-        return pdf_links
 
     def get_pdf_links(self, url: str = None):
         """
@@ -103,47 +78,10 @@ class FDAScraper:
         # Generate dictionary for each pdf link and respective year
         link_year_dict = dict(zip(years, pdf_links))
 
+        # set instance variable
+        self.link_dict = link_year_dict
+
         return link_year_dict
-
-    def get_archive_pdf_links(self, url: str = None):
-        """
-        Obtain pdf links for archived years.
-        :param url:
-        :return:
-        """
-
-        if url is None:
-            url = self.url
-
-        site = requests.get(url)
-        soup = BeautifulSoup(site.content, 'html.parser')
-
-        # Find all links in the webpage
-        links = soup.find_all('a', href=True)
-
-        # Obtain links to PDFs, but remove the unwanted junk link
-        pdf_links = []
-        unwanted_text = "Comparison of NMEs approved in 2010 to previous years"
-
-        for link in links:
-            href = link['href']
-            if href.endswith('.pdf') and unwanted_text not in link.text:
-                # Handle relative URLs
-                pdf_link = href if href.startswith('http') else 'https://wayback.archive-it.org' + href
-                pdf_links.append(pdf_link)
-
-        if len(pdf_links) == 0:
-            raise ValueError("No pdf links found! Issue may be download or archival issues. Try again later.")
-        else:
-            return pdf_links
-
-    def get_archive_tables(self, url: str = None):
-        """
-        Obtain tables from archived years.
-        :param url:
-        :return:
-        """
-        pass
 
     """
     Extracted information is given as a list of tables. This is because the table is split across multiple pages. 
@@ -152,18 +90,27 @@ class FDAScraper:
     **NOTE:** The first row table will be page headers and start dates. This is not needed and can be removed. 
     """
 
-    def extract_table(self, url: str = None):
+    def extract_table(self, links: dict = None, year: str = None):
         """
         Convert pdf tables into pd.Dataframe
-        :param url:
+        :param links: dict
+            Input a dictionary containing the year:link for information from the U.S. FDA.
+        :param year: str
+            String indicating year to extract information from.
         :return:
         """
         # The information is organized across multiple pages. Tables will need to be generated, processed, and concated.
+
+        if links is None:
+            links = self.link_dict
+
+        url = links.get(year)
+
         try:
             tables = tabula.read_pdf(url, pages='all', lattice=True, pandas_options={"header": [0, 1]},
                                      multiple_tables=True)
 
-            df = pd.concat(tables[1:], ignore_index=True)  # Do not use table[0] becuase it is junk
+            df = pd.concat(tables[1:], ignore_index=True)  # Do not use table[0] because it is junk
             data_df = df.replace(to_replace=r'\r', value=' ', regex=True)  # replace the '\r' string with a space
 
             header = data_df.iloc[0]  # Grab the first row for the header
@@ -209,6 +156,79 @@ class FDAScraper:
     def get_current_year(self, url: str = None):
         """
         Get approvals for current year.
+        :param url:
+        :return:
+        """
+        pass
+
+
+"""Future code?"""
+
+
+class FDAArchiveScraper:
+    def __init__(self):
+        self.url = None
+
+    wayback_links = 'https://wayback.archive-it.org/7993/20170404174205/https://www.fda.gov/Drugs/DevelopmentApprovalProcess/HowDrugsareDevelopedandApproved/DrugandBiologicApprovalReports/NDAandBLAApprovalReports/ucm373420.htm'
+
+    def _get_archive_pdf_links(self, url: str = None):
+        """
+        Obtain pdf links for archived years.
+        :param url:
+        :return:
+        """
+
+        if url is None:
+            url = self.url
+
+        site = requests.get(url)
+        soup = BeautifulSoup(site.content, 'html.parser')
+
+        # Get archive link
+        # Find all links in the webpage
+        links = soup.find_all('a', href=True)
+        archive_link = [link['href'] for link in links if 'wayback' in link['href']]
+
+        return archive_link
+
+    def _wayback_pdf_links(url: str = None):
+        # scrape wayback link
+        site = requests.get(url)
+        soup = BeautifulSoup(site.content, 'html.parser')
+
+        # unwanted_text = "Comparison of NMEs approved in 2010 to previous years"
+        pdf_links_years = []
+        links = []
+        years = []
+
+        # Extract relevant data
+        for a_tag in soup.find_all('a'):
+            href = a_tag.get('href', '')
+            if '.pdf' in href:
+                text = a_tag.get_text()
+                # Extract year from the text
+                year = None
+                for part in text.split():
+                    if part.isdigit() and len(part) == 4:  # Simple year check
+                        year = part
+                        break
+                # Add to list if year is found
+                if year:
+                    full_link = f"https://www.fda.gov{href}"
+                    pdf_links_years.append((full_link, year))
+
+        # Print the results
+        for link, year in pdf_links_years:
+            links.append(link)
+            years.append(year)
+
+        result_dict = dict(zip(years, links))
+
+        return result_dict
+
+    def _get_archive_tables(self, url: str = None):
+        """
+        Obtain tables from archived years.
         :param url:
         :return:
         """
