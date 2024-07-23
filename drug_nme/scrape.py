@@ -84,36 +84,21 @@ class FDAScraper:
         pdf_links = []
         years = []
 
+        # Get and label links by year
         for link in links:
             href = link.get('href', '')
             title = link.get('title', link.text)  # Use title if available, otherwise use the link text
 
-            # Construct full URL if needed
+            # Construct full URL
             full_link = href if href.startswith('http') else 'https://www.fda.gov' + href
 
             # Find years in the title
             found_years = year_pattern.findall(title)
 
+            # Add link and corresponding year(s)
             if found_years:
-                # Add link and corresponding year(s)
                 pdf_links.append(full_link)
-                years.append(found_years[0])  # Assuming there's only one year per title
-
-        # # Filter out links that end with .pdf
-        # pages = [link['href'] for link in links if 'download' in link['href']]
-        #
-        # # Extract years from the page
-        # years = []
-        # year_pattern = re.compile(r'\b\d{4}\b')
-        # for link in links:
-        #     title = link.get('title', '')
-        #     # Find all years in the title
-        #     found_years = year_pattern.findall(title)
-        #     # Add found years to the list, ensuring no duplicates
-        #     years.extend(set(found_years))
-        #
-        # # Handle relative URLs
-        # pdf_links = [link if link.startswith('http') else 'https://www.fda.gov' + link for link in pages]
+                years.append(found_years[0])
 
         # Generate dictionary for each pdf link and respective year
         link_year_dict = dict(zip(years, pdf_links))
@@ -148,7 +133,7 @@ class FDAScraper:
                 pdf_links.append(pdf_link)
 
         if len(pdf_links) == 0:
-            raise ValueError("No pdf links found! May be download or archival issues. Try again later.")
+            raise ValueError("No pdf links found! Issue may be download or archival issues. Try again later.")
         else:
             return pdf_links
 
