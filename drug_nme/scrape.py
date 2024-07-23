@@ -1,6 +1,7 @@
 import requests
 import re
 import pandas as pd
+from datetime import datetime
 from bs4 import BeautifulSoup
 import tabula
 
@@ -69,6 +70,44 @@ class FDAScraper:
         fda_df = pd.read_csv(full_link)
 
         return fda_df
+
+    def get_current_year(self, url: str = None):
+        """
+        Get approvals for current year. Information will scrape drug approvals from a table on a website.
+        :param url:
+        :return:
+        """
+
+        if url is None:
+            url = self.latest_link
+
+        site = requests.get(url)
+        soup = BeautifulSoup(site.content, 'html.parser')
+
+        # get current year
+        latest_year = str(datetime.now().year)
+
+        pattern = 'Novel Drug Approvals for ' + latest_year
+
+        latest_link = None
+
+        # Find all links in the webpage
+        links = soup.find_all('a', href=True)
+
+        for link in links:
+            href = link.get('href')
+            text = link.get('title', link.text).strip()  # get title or text and remove whitespace
+            # if a match found, extract link and break loop
+            if pattern in text:
+                latest_link = href
+                break
+
+        # build full link for latest year
+        latest_link = 'https://www.fda.gov' + latest_link
+
+        df = _latest_nme_table(latest_link)
+
+        return df
 
     def get_pdf_links(self, url: str = None):
         """
@@ -189,14 +228,6 @@ class FDAScraper:
 
             return data_df
 
-    def get_current_year(self, url: str = None):
-        """
-        Get approvals for current year.
-        :param url:
-        :return:
-        """
-        pass
-
 
 """Future code?"""
 
@@ -269,3 +300,35 @@ class FDAArchiveScraper:
         :return:
         """
         pass
+
+
+"""
+Support functions
+"""
+
+
+def _latest_nme_table(latest_link):
+    """
+    Get Novel Drug Approvals for specific year. Function typically for latest year.
+    """
+    # From site
+    response = requests.get(latest_link)
+    soup = BeautifulSoup(response.content, 'html.parser')
+
+    # Find the table on the webpage
+    table = soup.find('table')
+
+    # Extract headers
+    headers = [header.text.strip() for header in table.find_all('th')]
+
+    # Extract rows
+    rows = []
+    for row in table.find_all('tr')[1:]:  # Skip the header row
+        cells = row.find_all('td')
+        rows.append([cell.text.strip() for cell in cells])
+
+    # Create DataFrame
+    df = pd.DataFrame(rows, columns=headers)
+    df = df.drop(columns=['No.'])
+
+    return df
