@@ -4,10 +4,10 @@ import pandas as pd
 from bs4 import BeautifulSoup
 import tabula
 
-__all__ = ["Scrape"]
+__all__ = ["FDAScraper"]
 
 
-class Scrape:
+class FDAScraper:
     def __init__(self, url: str = None, compilation_link: str = None, latest_link: str = None):
         """
         Initialize Scrape class. Input requires link to Novel Drug Approvals at FDA.
