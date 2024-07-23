@@ -31,8 +31,44 @@ class FDAScraper:
         # Set instance variable
         self.link_dict = None
 
-    def get_compilation(self, url: str):
-        pass
+    def get_compilation(self, url: str = None):
+        """
+        Get compilation of CDER NME and New Biologic Approvals. Currently, as early as 1985 and as recent as 2023.
+
+        :param url: str
+            Link to the FDA page with Compilation Data. This is optional.
+        """
+
+        if url is None:
+            url = self.compilation_link
+
+        # extract link to compilation dataset
+        site = requests.get(url)
+        soup = BeautifulSoup(site.content, 'html.parser')
+
+        # get all links
+        links = soup.find_all('a', href=True)
+
+        # set target link for filtering links
+        compilation_pattern = 'Compilation Of CDER NME And New Biologic Approvals'
+        compilation_link = None
+
+        # search for compilation_patter in links
+        for link in links:
+            href = link.get('href')
+            text = link.get('title', link.text).strip()  # get title or text and remove whitespace
+            # if a match found, extract link and break loop
+            if compilation_pattern in text:
+                compilation_link = href
+                break
+
+        # add fda url to compilation link
+        full_link = 'https://www.fda.gov' + compilation_link
+
+        # download and convert link into dataframe
+        fda_df = pd.read_csv(full_link)
+
+        return fda_df
 
     def get_pdf_links(self, url: str = None):
         """
@@ -68,12 +104,12 @@ class FDAScraper:
             full_link = href if href.startswith('http') else 'https://www.fda.gov' + href
 
             # Find years in the title
-            found_years = year_pattern.findall(title)
+            identified_years = year_pattern.findall(title)
 
             # Add link and corresponding year(s)
-            if found_years:
+            if identified_years:
                 pdf_links.append(full_link)
-                years.append(found_years[0])
+                years.append(identified_years[0])
 
         # Generate dictionary for each pdf link and respective year
         link_year_dict = dict(zip(years, pdf_links))
