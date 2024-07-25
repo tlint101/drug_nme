@@ -13,3 +13,4 @@ dependencies:
       - JPype1
       - matplotlib
       - seaborn
+      - legendkit
