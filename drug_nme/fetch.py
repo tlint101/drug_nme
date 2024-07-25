@@ -49,24 +49,28 @@ class PharmacologyDataFetcher:
         if isinstance(agency, str):
             agency = [agency]
 
-        agency_list = [self._check_agency_input(x) for x in agency]
+        agency_list = [_check_agency_input(x) for x in agency]
 
         # Download JSON data
         json_data = _download_json_with_progress(url, type='guide')
         json_df = pd.DataFrame(json_data)
 
-        results = pd.DataFrame(index=json_df.index)
+        extraction_tables = []
 
         # Apply the extract_approval_info function for each query
         for query in agency_list:
             # Apply the function to each row
-            extracted_info = json_df['approvalSource'].apply(lambda x: self._extract_approval_info(x, query))
-            # Separate the results into two columns
-            results[query] = extracted_info.apply(lambda x: x[0] if x else None)
-            results[f"{query}_year"] = extracted_info.apply(lambda x: x[1] if x else None)
+            extracted_info = json_df['approvalSource'].apply(_extract_approval_info)
+
+            # rename series and add to table
+            extracted_info = extracted_info.rename(f"{query}_info")
+            extraction_tables.append(extracted_info)
+            # # Separate the results into two columns
+            # results[query] = extracted_info.apply(lambda x: x[0] if x else None)
+            # results[f"{query}_year"] = extracted_info.apply(lambda x: x[1] if x else None)
 
         # Combine the results with the original DataFrame
-        data_df = pd.concat([json_df, results], axis=1)
+        data_df = pd.concat([json_df] + extraction_tables, axis=1)
 
         # drop columns by name
         col_to_drop = ['abbreviation', 'inn', 'species', 'radioactive', 'labelled', 'immuno', 'malaria',
@@ -84,28 +88,37 @@ class PharmacologyDataFetcher:
 
         return processed_df
 
-    # Function to extract approval source and year
-    def _extract_approval_info(self, source_str, source_name):
 
-        pattern = re.compile(rf"{source_name}\s*\((\d{{4}})[^)]*\)")
-        match = pattern.search(source_str)
-        if match:
-            return source_name, match.group(1)
-        elif source_name in source_str:
-            return source_name, None
-        return None, None
+def _check_agency_input(agency: str = None):
+    """Conditional check for capitalization by agency or country"""
 
-    def _check_agency_input(self, agency: str = None):
-        "Conditional check for capitalization by agency or country"
+    if agency.lower() == 'fda':
+        return 'FDA'
+    elif agency.lower() == 'ema':
+        return 'EMA'
+    elif agency.lower() == 'uk':
+        return 'UK'
+    else:
+        return agency.capitalize()
 
-        if agency.lower() == 'fda':
-            return 'FDA'
-        elif agency.lower() == 'ema':
-            return 'EMA'
-        elif agency.lower() == 'uk':
-            return 'UK'
-        else:
-            return agency.capitalize()
+
+def _extract_approval_info(text):
+    # Regular expression to match 'FDA (year)' with various noise patterns
+    match = re.search(r'\bFDA\b[^()]*\(\s*(\d{4})\s*\)', text, re.IGNORECASE)
+    if match:
+        return f"FDA ({match.group(1)})"
+
+    # Handling cases where the year might be mentioned with some variations
+    match_alternative = re.search(r'\bFDA\b[^()]*\(\s*(\d{4})\s*(?:[^)]*)?\)', text, re.IGNORECASE)
+    if match_alternative:
+        return f"FDA ({match_alternative.group(1)})"
+
+    # Additional cases where 'FDA' might be separated by other characters or words
+    match_fallback = re.search(r'\bFDA\b.*\b(\d{4})\b', text, re.IGNORECASE)
+    if match_fallback:
+        return f"FDA ({match_fallback.group(1)})"
+
+    return None
 
 
 class FDADataFetcher:
