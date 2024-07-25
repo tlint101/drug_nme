@@ -9,24 +9,28 @@ __all__ = ["Plot"]
 
 
 class Plot:
-    def __init__(self, df: pd.DataFrame = None, type_col: str = None):
+    def __init__(self, df: pd.DataFrame = None, sort_col: str or list = None):
         """
-        Initialize the Plot object. Need to indicate where the source is from. Either from openFDA or from Guide to
-        Pharmacology.
+        Parameters to initialize the plots are optional. If given, the pd.DataFrame will be shaped and organized for
+        plotting. The pd.DataFrames should come from either from openFDA or from Guide to Pharmacology sources.
 
         :param df: pd.DataFrame
             Input pd.DataFrame containing drug approvals. The DataFrame must be obtained from the DataFetcher or Scrape
             classes.
-        :param type_col: str
+        :param sort_col: str
             The name of the column for processing. Name should match that of the existing column headers from the
             pd.DataFrame.
         """
+        # count values from the input pd.DataFrame
+        count_df = df.groupby(sort_col).size().reset_index(name='Count')
+        self.df = count_df
 
-        self.df = df
-        self.source = type_col;
-
-        # if type_col is None:
-        #     raise ValueError("Data source must be 'fda' or 'pharmacology'!")
+    def show(self):
+        """To view the processed pd.DataFrame given during initialization"""
+        return self.df
 
     def bar(self, df, source):
+        pass
+
+    def stacked(self, df, source):
         pass
