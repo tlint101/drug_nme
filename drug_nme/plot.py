@@ -9,6 +9,8 @@ from legendkit import legend
 
 __all__ = ["Plot"]
 
+# globally remove grid lines from plot
+plt.rcParams['axes.grid'] = False
 
 class Plot:
     def __init__(self, df: pd.DataFrame = None, sort_col: str or list = None):
@@ -85,10 +87,9 @@ class Plot:
         if savepath:
             # adjust layout to prevent clipping
             plt.tight_layout()
-            plt.savefig(savepath)
+            plt.savefig(savepath, dpi=300)
             plt.close()
 
         return image
 
-    def stacked(self, df, source):
-        pass
+
