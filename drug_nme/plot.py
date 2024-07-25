@@ -4,6 +4,8 @@ Script to plot information from drug_nme pd.DataFrames
 
 import pandas as pd
 import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 __all__ = ["Plot"]
 
@@ -29,8 +31,17 @@ class Plot:
         """To view the processed pd.DataFrame given during initialization"""
         return self.df
 
-    def bar(self, df, source):
-        pass
+    def bar(self, data: pd.DataFrame = None, x='Year', y='Count', hue='type'):
+
+        if data is None:
+            data = self.df
+
+        x = 'Year'
+        y = 'Count'
+        hue = 'type'
+        sns.barplot(x='Year', y='Count', hue='type', data=data)
+
+        plt.show()
 
     def stacked(self, df, source):
         pass
