@@ -3,9 +3,9 @@ Script to plot information from drug_nme pd.DataFrames
 """
 
 import pandas as pd
-import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
+from legendkit import legend
 
 __all__ = ["Plot"]
 
@@ -31,17 +31,64 @@ class Plot:
         """To view the processed pd.DataFrame given during initialization"""
         return self.df
 
-    def bar(self, data: pd.DataFrame = None, x='Year', y='Count', hue='type'):
+    def bar(self,
+            data: pd.DataFrame = None,
+            x: str = 'Year',
+            y: str = 'Count',
+            hue: str = 'type',
+            title: str = None,
+            color_palette: str or list = None,
+            legend_loc: str = None,
+            figsize: tuple[float, float] = (10, 5),
+            savepath: str = None):
+        """
+        :param data: pd.DataFrame
+            Input query pd.DataFrame. Should be processed. If not given, function will utilize the initialized processed
+            pd.DataFrame.
+        :param x: str
+            The column header for the X-axis.
+        :param y: str
+            The column header for the Y-axis.
+        :param hue: str
+            The column header to set the hue.
+        :param title: str
+            Set the title of the plot.
+        :param color_palette: str or list
+            Set the color palette for the plot. Can be single palette name or a list of color names or hex codes.
+        :param legend_loc: str
+            Set the legend location for the plot.
+        :param figsize: tuple
+            Set the size of the figure.
+        :param savepath: str
+            Set the save location for the plot.
+        """
 
         if data is None:
             data = self.df
 
-        x = 'Year'
-        y = 'Count'
-        hue = 'type'
-        sns.barplot(x='Year', y='Count', hue='type', data=data)
+        plt.figure(figsize=figsize)
 
-        plt.show()
+        if color_palette:
+            sns.set_palette(color_palette)
+
+        image = sns.barplot(x=x, y=y, hue=hue, data=data)
+
+        # replace plt legend with legendkit
+        image.legend_.remove()
+        if legend_loc:
+            legend(loc=legend_loc)
+
+        if title:
+            plt.title(title)
+
+        # save fig
+        if savepath:
+            # adjust layout to prevent clipping
+            plt.tight_layout()
+            plt.savefig(savepath)
+            plt.close()
+
+        return image
 
     def stacked(self, df, source):
         pass
