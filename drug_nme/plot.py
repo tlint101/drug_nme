@@ -32,7 +32,8 @@ class Plot:
 
     def show(self):
         """To view the processed pd.DataFrame given during initialization"""
-        return self.df
+        df = self.df
+        return pd.DataFrame(df)
 
     def bar(self,
             data: pd.DataFrame = None,
