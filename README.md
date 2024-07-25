@@ -19,5 +19,5 @@ Drug NME obtains information from two methods - Web Scraping the [FDA CDER websi
 or utilizing API from two sources - the [OpenFDA](https://open.fda.gov) or the [Guide To Pharmacology](https://www.guidetopharmacology.org/webServices.jsp).
 
 ## Special Thanks
-This repository was inspired by [Phyo Phyo Kyaw Zin, PhD](https://drzinph.com/how-to-scrape-fda-drug-approval-data-with-python/).
+This repository was inspired from a blog post by [Phyo Phyo Kyaw Zin, PhD](https://drzinph.com/how-to-scrape-fda-drug-approval-data-with-python/).
 
