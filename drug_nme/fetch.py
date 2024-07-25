@@ -59,15 +59,18 @@ class PharmacologyDataFetcher:
 
         # Apply the extract_approval_info function for each query
         for query in agency_list:
-            # Apply the function to each row
-            extracted_info = json_df['approvalSource'].apply(_extract_approval_info)
+            # apply the function to each row
+            extracted_series = json_df['approvalSource'].apply(_extract_approval_info)
 
-            # rename series and add to table
-            extracted_info = extracted_info.rename(f"{query}_info")
-            extraction_tables.append(extracted_info)
-            # # Separate the results into two columns
-            # results[query] = extracted_info.apply(lambda x: x[0] if x else None)
-            # results[f"{query}_year"] = extracted_info.apply(lambda x: x[1] if x else None)
+            # convert Series to DataFrame and rename table
+            agency_df = extracted_series.to_frame()
+            agency_df.columns = [f"{query}_info"]
+
+            # split the 'approval_info' column into two columns
+            agency_df[[f'{query}', 'Year']] = agency_df[f"{query}_info"].str.extract(r'([^\(]+)\s*\((\d{4})\)')
+
+            # append to list
+            extraction_tables.append(agency_df)
 
         # Combine the results with the original DataFrame
         data_df = pd.concat([json_df] + extraction_tables, axis=1)
@@ -86,7 +89,15 @@ class PharmacologyDataFetcher:
         # if columns after col7 are all None, remove the row
         processed_df = processed_df.loc[~processed_df.iloc[:, 7:].isnull().all(axis=1)]
 
+        # ensure columns are string or int
+        processed_df['type'] = processed_df['type'].astype(str)
+        processed_df['FDA'] = processed_df['FDA'].astype(str)
+        processed_df['Year'] = processed_df['Year'].astype(int)
+
         return processed_df
+
+
+"""Support functions for Pharmacology data fetcher"""
 
 
 def _check_agency_input(agency: str = None):
