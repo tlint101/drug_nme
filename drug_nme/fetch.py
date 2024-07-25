@@ -28,6 +28,8 @@ class PharmacologyDataFetcher:
         if url is None:
             self.url = "https://www.guidetopharmacology.org/services/ligands?type=Approved"
 
+        self.data = None
+
     def get_data(self, url: str = None, agency: str or list = 'FDA'):
         """
         Get data from Guide to Pharmacology API and convert into pd.DataFrame.
@@ -93,11 +95,36 @@ class PharmacologyDataFetcher:
         processed_df['type'] = processed_df['type'].astype(str)
         processed_df['FDA'] = processed_df['FDA'].astype(str)
         processed_df['Year'] = processed_df['Year'].astype(int)
+        self.data = processed_df # set processed_df to self.df
 
         return processed_df
 
+    def kinase_label(self, data: pd.DataFrame = None, label: str = 'Kinase'):
+        """
+        Relabel drugs as Kinase. Function currently tested for sources from GuideToPharmacology. The kinases are labeled
+        based on the suffix or unique names. This can be seen under the suffix list.
+        :param data: pd.DataFrame
+            Input DataFrame obtained from GuidetoPharmacology.
+        :param label: str
+            New label. By default, it is "Kinase".
+        """
+        if data is None:
+            data = self.data
+
+        # string search
+        suffixes = ['nib', 'tib', 'lib', 'belumosudil', 'sirolimus', 'everolimus', 'midostaurin', 'netarsudil']
+
+        # Apply the function to the DataFrame
+        data['type'] = data.apply(lambda row: _check_suffix(row, suffixes, label), axis=1)
+
+        return data
+
 
 """Support functions for Pharmacology data fetcher"""
+def _check_suffix(row, suffixes, replacement_string):
+    if any(row['name'].endswith(suffix) for suffix in suffixes):
+        return replacement_string
+    return row['type']
 
 
 def _check_agency_input(agency: str = None):

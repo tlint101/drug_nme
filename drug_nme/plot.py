@@ -100,7 +100,7 @@ class Plot:
                 title: str = None,
                 label: bool = True,
                 color_palette: str or list = None,
-                fontsize: int = 10,
+                fontsize: int = 8,
                 legend_loc: str = None,
                 figsize: tuple[float, float] = (10, 5),
                 savepath: str = None
