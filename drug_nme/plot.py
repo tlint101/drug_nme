@@ -92,4 +92,62 @@ class Plot:
 
         return image
 
+    def stacked(self,
+                data: pd.DataFrame = None,
+                x: str = 'Year',
+                y: str = 'Count',
+                groups: str = 'type',
+                title: str = None,
+                label: bool = True,
+                color_palette: str or list = None,
+                fontsize: int = 10,
+                legend_loc: str = None,
+                figsize: tuple[float, float] = (10, 5),
+                savepath: str = None
+                ):
+        if data is None:
+            data = self.df
 
+        # Pivot the DataFrame to get types as columns and years as rows
+        pivot_df = data.pivot_table(index=x, columns=groups, values=y, fill_value=0)
+
+        # set color palette
+        palette = sns.color_palette(color_palette)
+
+        # Plot stacked bar plot
+        image = pivot_df.plot(kind='bar', stacked=True, figsize=figsize, color=palette)
+
+        # Add labels and title
+        image.set_xlabel('Year')
+        image.set_ylabel('Count')
+        image.set_title(title)
+
+        if label is not False:
+            # Add numbers on top of each bar segment
+            for p in image.patches:
+                height = p.get_height()
+                if height > 0:  # Only add label if the height is greater than 0
+                    image.text(
+                        p.get_x() + p.get_width() / 2,  # x position (middle of the bar)
+                        p.get_y() + height / 2,  # y position (middle of the bar)
+                        int(height),  # text value
+                        ha='center',  # horizontal alignment
+                        va='center',  # vertical alignment
+                        fontsize=fontsize,  # font size
+                        color='black'  # text color
+                    )
+
+        # replace plt legend with legendkit
+        if legend_loc:
+            image.legend_.remove()
+            legend(loc=legend_loc)
+
+
+        # save fig
+        if savepath:
+            # adjust layout to prevent clipping
+            plt.tight_layout()
+            plt.savefig(savepath, dpi=300)
+            plt.close()
+
+        return image
