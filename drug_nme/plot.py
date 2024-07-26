@@ -87,6 +87,10 @@ class Plot:
         if legend_loc:
             legend(loc=legend_loc)
 
+        # Add labels and padding
+        image.set_xlabel(x, labelpad=15)
+        image.set_ylabel(y, labelpad=15)
+
         if title:
             plt.title(title)
 
@@ -155,9 +159,9 @@ class Plot:
         # Plot stacked bar plot
         image = pivot_df.plot(kind='bar', stacked=True, figsize=figsize, color=palette)
 
-        # Add labels and title
-        image.set_xlabel('Year')
-        image.set_ylabel('Count')
+        # Add labels, padding and title
+        image.set_xlabel('Year', labelpad=15)
+        image.set_ylabel('Count', labelpad=15)
         image.set_title(title)
 
         if label is not False:
