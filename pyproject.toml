@@ -1,20 +1,22 @@
 [tool.poetry]
 name = "drug-nme"
-version = "0.1.0"
+version = "0.1.1"
 description = "Obtain Novel Drug Approvals"
 authors = ["Tony Eight Lin <tonyelin@tmu.edu.tw>"]
 license = "MIT"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.9"
-pandas = "^2.2.2"
+python = "^3.9,<3.13"
+pandas = ">=1.5.0"
 tqdm = "^4.66.4"
-tabula-py = "^2.9.3"
-JPype1 = "^1.5.0"
-matplotlib = "^3.9.1"
-seaborn = "^0.13.2"
-legendkit = "^0.3.4"
+tabula-py = "<=2.9.3"
+JPype1 = "*"
+matplotlib = "<=3.9.1"
+seaborn = "<=0.13.2"
+legendkit = "<=0.3.4"
+requests = "<=2.32.3"
+beautifulsoup4 = "<=4.12.3"
 
 
 [build-system]
