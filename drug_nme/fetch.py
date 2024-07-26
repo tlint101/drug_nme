@@ -99,7 +99,7 @@ class PharmacologyDataFetcher:
 
         return processed_df
 
-    def kinase_label(self, data: pd.DataFrame = None, label: str = 'Kinase'):
+    def make_kinase_label(self, data: pd.DataFrame = None, label: str = 'Kinase'):
         """
         Relabel drugs as Kinase. Function currently tested for sources from GuideToPharmacology. The kinases are labeled
         based on the suffix or unique names. This can be seen under the suffix list.
