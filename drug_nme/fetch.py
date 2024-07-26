@@ -95,9 +95,9 @@ class PharmacologyDataFetcher:
         processed_df['type'] = processed_df['type'].astype(str)
         processed_df['FDA'] = processed_df['FDA'].astype(str)
         processed_df['Year'] = processed_df['Year'].astype(int)
-        self.data = processed_df # set processed_df to self.df
+        self.data = processed_df  # set processed_df to self.df
 
-        return processed_df
+        return pd.DataFrame(processed_df)
 
     def make_kinase_label(self, data: pd.DataFrame = None, label: str = 'Kinase'):
         """
@@ -117,7 +117,7 @@ class PharmacologyDataFetcher:
         # Apply the function to the DataFrame
         data['type'] = data.apply(lambda row: _check_suffix(row, suffixes, label), axis=1)
 
-        return data
+        return pd.DataFrame(data)
 
 
 """Support functions for Pharmacology data fetcher"""
