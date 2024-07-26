@@ -18,6 +18,17 @@ More information on the project and the hurdles I had on making the project will
 Drug NME obtains information from two methods - Web Scraping the [FDA CDER website for New Drug Approvals](https://www.fda.gov/drugs/development-approval-process-drugs/novel-drug-approvals-fda)
 or utilizing API from two sources - the [OpenFDA](https://open.fda.gov) or the [Guide To Pharmacology](https://www.guidetopharmacology.org/webServices.jsp).
 
+## Installation
+The drug_nme can be installed as follows:
+```python
+pip install drug_nme
+```
+
+and can be updated using:
+```python
+pip install drug_nme -U
+```
+
 ## Special Thanks
 This repository was inspired from a blog post by [Phyo Phyo Kyaw Zin, PhD](https://drzinph.com/how-to-scrape-fda-drug-approval-data-with-python/).
 
