@@ -17,7 +17,7 @@ class Plot:
     def __init__(self, df: pd.DataFrame = None, sort_col: str or list = None):
         """
         Parameters to initialize the plots are optional. If given, the pd.DataFrame will be shaped and organized for
-        plotting. The pd.DataFrames should come from either from openFDA or from Guide to Pharmacology sources.
+        plotting. The pd.DataFrame sources should come from either from openFDA or from Guide to Pharmacology.
 
         :param df: pd.DataFrame
             Input pd.DataFrame containing drug approvals. The DataFrame must be obtained from the DataFetcher or Scrape
@@ -46,6 +46,9 @@ class Plot:
             figsize: tuple[float, float] = (10, 5),
             savepath: str = None):
         """
+        Generate bar plot. Ideally, the pd.DataFrame should be preprocessed upon initialization of Plot. However, it can
+        be manually done if users prefer.
+
         :param data: pd.DataFrame
             Input query pd.DataFrame. Should be processed. If not given, function will utilize the initialized processed
             pd.DataFrame.
@@ -108,6 +111,9 @@ class Plot:
                 savepath: str = None
                 ):
         """
+        Generate stacked bar plot. Ideally, the pd.DataFrame should be preprocessed upon initialization of Plot. However, it can
+        be manually done if users prefer.
+
         :param data: pd.DataFrame
             Input query pd.DataFrame. Should be processed. If not given, function will utilize the initialized processed
             pd.DataFrame.
@@ -190,6 +196,9 @@ class Plot:
               savepath: str = None
               ):
         """
+        Generate a donut plot for drug approvals. Ideally, the pd.DataFrame should be preprocessed upon initialization
+        of Plot. The preprocessed pd.DataFrame should then be filtered for the desire year before plotting.
+
         :param data: pd.DataFrame
             Input query pd.DataFrame. Should be processed. Function can only accept data that has been sliced by year.
         :param title: str
