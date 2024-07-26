@@ -30,9 +30,11 @@ class Plot:
         count_df = df.groupby(sort_col).size().reset_index(name='Count')
         self.df = count_df
 
-    def show(self):
+    def show(self, head: int = None):
         """To view the processed pd.DataFrame given during initialization"""
         df = self.df
+        if head:
+            df = df.head(head)
         return pd.DataFrame(df)
 
     def bar(self,
@@ -106,6 +108,7 @@ class Plot:
                 label: bool = True,
                 color_palette: str or list = None,
                 fontsize: int = 8,
+                fontcolor: str = 'black',
                 legend_loc: str = None,
                 figsize: tuple[float, float] = (10, 5),
                 savepath: str = None
@@ -131,6 +134,8 @@ class Plot:
             Set the color palette for the plot. Can be single palette name or a list of color names or hex codes.
         :param fontsize: int
             Set the fontsize for the annotations.
+        :param fontcolor: str
+            St the font color for the annotations.
         :param legend_loc: str
             Set the legend location for the plot.
         :param figsize: tuple
@@ -161,13 +166,13 @@ class Plot:
                 height = p.get_height()
                 if height > 0:  # Only add label if the height is greater than 0
                     image.text(
-                        p.get_x() + p.get_width() / 2,  # x position (middle of the bar)
-                        p.get_y() + height / 2,  # y position (middle of the bar)
-                        int(height),  # text value
+                        p.get_x() + p.get_width() / 2,  # x position in bar
+                        p.get_y() + height / 2,  # y position in bar
+                        int(height),
                         ha='center',  # horizontal alignment
                         va='center',  # vertical alignment
-                        fontsize=fontsize,  # font size
-                        color='black'  # text color
+                        fontsize=fontsize,
+                        color=fontcolor
                     )
 
         # replace plt legend with legendkit
