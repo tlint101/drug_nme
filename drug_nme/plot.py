@@ -101,6 +101,9 @@ class Plot:
             plt.savefig(savepath, dpi=300)
             plt.close()
 
+        plt.tight_layout()
+        plt.show()
+
         return image
 
     def stacked(self,
@@ -190,6 +193,9 @@ class Plot:
             plt.tight_layout()
             plt.savefig(savepath, dpi=300)
             plt.close()
+
+        plt.tight_layout()
+        plt.show()
 
         return image
 
@@ -282,5 +288,8 @@ class Plot:
             plt.tight_layout()
             plt.savefig(savepath, dpi=300)
             plt.close()
+
+        plt.tight_layout()
+        plt.show()
 
         return image
