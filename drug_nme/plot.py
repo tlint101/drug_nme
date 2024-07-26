@@ -196,10 +196,13 @@ class Plot:
     def donut(self,
               data: pd.DataFrame = None,
               title: str = None,
+              titlesize: int = 14,
               color_palette: str or list = None,
               pctdistance: int = 0.8,
               labeldistance: int = 1.1,
               fontsize: int = 10,
+              annotsize: int = 10,
+              annotcolor: str = 'black',
               legend_loc: str = None,
               figsize: tuple[float, float] = (10, 5),
               savepath: str = None
@@ -212,6 +215,8 @@ class Plot:
             Input query pd.DataFrame. Should be processed. Function can only accept data that has been sliced by year.
         :param title: str
             Set the title of the plot.
+        :param titlesize: int
+            Set the titlesize for the plot.
         :param color_palette: str or list
             Set the color palette for the plot.
         :param pctdistance: int
@@ -220,13 +225,20 @@ class Plot:
             Set the position of the category labels.
         :param fontsize: int
             Set the fontsize for the annotations.
+        :param annotsize: int
+            Set the annotation fontsize.
+        :param annotcolor: str
+            St the font color for the annotations.
         :param legend_loc: str
-            Set the positions of the figure ligend.
+            Set the positions of the figure ligand.
         :param figsize: tuple
             Set the size of the figure.
         :param savepath: str
             Set the save location for the plot.
         """
+        if data is None:
+            data = self.df
+
         # Set Seaborn color palette
         color_palette = sns.color_palette(color_palette)
 
@@ -246,7 +258,8 @@ class Plot:
         )
 
         for text in autotexts:
-            text.set_fontsize(fontsize)
+            text.set_fontsize(annotsize)
+            text.set_color(annotcolor)
 
         # Draw a circle at the center of the plot
         image = plt.Circle((0, 0), 0.6, color='white')  # Smaller radius for a smaller hole
@@ -258,8 +271,11 @@ class Plot:
         if legend_loc:
             legend(loc=legend_loc)
 
+        # set label font size
+        plt.setp(texts, fontsize=fontsize)
+
         if title:
-            plt.title(title)
+            plt.title(title, pad=15, fontsize=titlesize)
 
         if savepath:
             # adjust layout to prevent clipping
