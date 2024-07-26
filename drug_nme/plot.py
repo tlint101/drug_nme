@@ -256,7 +256,7 @@ class Plot:
             labels=data['type'],
             startangle=90,
             colors=color_palette,
-            autopct=lambda pct: f'{int(pct / 100. * sum(data['Count']))}\n({pct:.1f}%)',
+            autopct=lambda pct: f"{int(pct / 100. * sum(data['Count']))}\n({pct:.1f}%)",
             wedgeprops=dict(width=0.4),  # Donut hole size
             textprops={'color': 'black'},
             pctdistance=pctdistance,
