@@ -29,6 +29,11 @@ and can be updated using:
 pip install drug_nme -U
 ```
 
+## To-Dos
+- [ ] Add plot options for FDA sources
+- [ ] Update tutorials
+- [ ] Add additional plot stypes
+
 ## Special Thanks
 This repository was inspired from a blog post by [Phyo Phyo Kyaw Zin, PhD](https://drzinph.com/how-to-scrape-fda-drug-approval-data-with-python/).
 
