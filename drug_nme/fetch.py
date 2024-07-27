@@ -69,7 +69,9 @@ class PharmacologyDataFetcher:
             agency_df.columns = [f"{query}_info"]
 
             # split the 'approval_info' column into two columns
-            agency_df[[f'{query}', 'Year']] = agency_df[f"{query}_info"].str.extract(r'([^\(]+)\s*\((\d{4})\)')
+            agency_df[[f'{query}', 'Year']] = agency_df[f"{query}_info"].str.extract(r'([^\(]+)\s*\((\d{4})\)', expand=True)
+
+            agency_df = agency_df.drop(columns=f"{query}_info")
 
             # append to list
             extraction_tables.append(agency_df)
@@ -85,8 +87,9 @@ class PharmacologyDataFetcher:
         # Replace empty strings in approvalSource with "" and drop.
         processed_df.replace("", np.nan, inplace=True)
 
-        # # For troubleshooting, remove approvalSource from list above and run or comment this during testing
-        processed_df = processed_df.dropna(subset='approvalSource')
+        # For troubleshooting, remove approvalSource from list above and run or comment this during testing
+        # processed_df = processed_df.dropna(subset='approvalSource')
+        processed_df = processed_df.drop(columns='approvalSource')
 
         # if columns after col7 are all None, remove the row
         processed_df = processed_df.loc[~processed_df.iloc[:, 7:].isnull().all(axis=1)]
