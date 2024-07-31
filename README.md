@@ -1,5 +1,5 @@
 # Drug NME - Get New Molecular Entities From the FDA
-[![python](https://img.shields.io/badge/Python->=3.9-3776AB.svg?style=flat&logo=python&logoColor=white)](https://www.python.org)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/drug_nme?style=flat&logo=python&logoColor=white)
 [![jupyter](https://img.shields.io/badge/Jupyter-Notebook-F37626.svg?style=flat&logo=Jupyter)](https://jupyterlab.readthedocs.io/en/stable)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
