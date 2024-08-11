@@ -1,4 +1,5 @@
 from typing import Optional
+from tqdm import tqdm
 import requests
 import re
 import pandas as pd
@@ -197,6 +198,35 @@ class FDAScraper:
 
         url = links.get(year)
 
+        # conditional check to get obtain tables from all years
+        if year == "all":
+            # Empty list to hold pd.DataFrame
+            tables = []
+
+            # Extract table for all years in dictionary
+            scrape = FDAScraper()
+            for specific_year, table in tqdm(links.items(), desc='Extracting tables'):
+                # get link for specific_year
+                link = links.get(specific_year)
+                data = scrape._extract_nme_table(url=link)
+                tables.append(data)
+
+            # Combine tables into a single pd.DataFrame
+            table = pd.concat(tables, ignore_index=True)
+
+            return table
+
+        # get table from specific year
+        else:
+            scrape_data = self._extract_nme_table(url)
+            return scrape_data
+
+
+    @staticmethod
+    def _extract_nme_table(url):
+        """
+        Support function for extracting FDA NME data from pdf link.
+        """
         try:
             tables = tabula.read_pdf(url, pages='all', lattice=True, pandas_options={"header": [0, 1]},
                                      multiple_tables=True)
