@@ -12,6 +12,12 @@ class FDAScraper:
     def __init__(self, url: str = None, compilation_link: str = None, latest_link: str = None):
         """
         Initialize Scrape class. Input requires link to Novel Drug Approvals at FDA.
+        :param url: str
+            Input FDA site to scrape data from.
+        :param compilation_link: str
+            Input FDA link that contains a link to the FDA compilation data.
+        :param latest_link: str
+            Scrap from FDA NME data from the latest (i.e. current) year.
         """
 
         if url is None:
