@@ -1,3 +1,4 @@
+from typing import Optional
 import requests
 import re
 import pandas as pd
@@ -9,14 +10,15 @@ __all__ = ["FDAScraper"]
 
 
 class FDAScraper:
-    def __init__(self, url: str = None, compilation_link: str = None, latest_link: str = None):
+    def __init__(self, url: Optional[str] = None, compilation_link: Optional[str] = None,
+                 latest_link: Optional[str] = None):
         """
         Initialize Scrape class. Input requires link to Novel Drug Approvals at FDA.
-        :param url: str
+        :param url: Optional[str]
             Input FDA site to scrape data from.
-        :param compilation_link: str
+        :param compilation_link: Optional[str]
             Input FDA link that contains a link to the FDA compilation data.
-        :param latest_link: str
+        :param latest_link: Optional[str]
             Scrap from FDA NME data from the latest (i.e. current) year.
         """
 
@@ -38,12 +40,14 @@ class FDAScraper:
         # Set instance variable
         self.link_dict = None
 
-    def get_compilation(self, url: str = None):
+    def get_compilation(self, url: Optional[str] = None):
         """
         Get compilation of CDER NME and New Biologic Approvals. Currently, as early as 1985 and as recent as 2023.
 
-        :param url: str
-            Link to the FDA page with Compilation Data. This is optional.
+        :param url: Optional[str]
+            Link to the FDA page with Compilation Data. This is optional. By default, it should point to the following
+            link:
+            https://www.fda.gov/drugs/drug-approvals-and-databases/compilation-cder-new-molecular-entity-nme-drug-and-new-biologic-approvals
         """
 
         if url is None:
@@ -77,10 +81,13 @@ class FDAScraper:
 
         return fda_df
 
-    def get_current_year(self, url: str = None):
+    def get_current_year(self, url: Optional[str] = None):
         """
         Get approvals for current year. Information will scrape drug approvals from a table on a website.
-        :param url:
+        :param url: Optional[str]
+            Link to the FDA page with Compilation Data. This is optional. By default, it should point to the following
+            link:
+        https://www.fda.gov/drugs/development-approval-process-drugs/novel-drug-approvals-fda
         :return:
         """
 
@@ -115,12 +122,15 @@ class FDAScraper:
 
         return df
 
-    def get_pdf_links(self, url: str = None):
+    def get_pdf_links(self, url: Optional[str] = None):
         """
         Obtain pdf links from CDER.
-        https://www.fda.gov/drugs/nda-and-bla-approvals/new-molecular-entity-nme-drug-and-new-biologic-approvals
-        :param url:
-        :return:
+        :param url: Optional[str]
+            Link to the FDA pages containing PDF links to FDA NME data. By default, it should point to the following:
+            link:
+            https://www.fda.gov/drugs/nda-and-bla-approvals/new-molecular-entity-nme-drug-and-new-biologic-approvals
+        :return: dict
+            A dictionary containing pdf links to FDA CDER NME data.
         """
         if url is None:
             url = self.url
