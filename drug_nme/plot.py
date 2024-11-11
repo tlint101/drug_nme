@@ -102,7 +102,6 @@ class Plot:
             # adjust layout to prevent clipping
             plt.tight_layout()
             plt.savefig(savepath, dpi=300)
-            plt.close()
 
         plt.tight_layout()
         plt.show()
@@ -195,7 +194,6 @@ class Plot:
             # adjust layout to prevent clipping
             plt.tight_layout()
             plt.savefig(savepath, dpi=300)
-            plt.close()
 
         plt.tight_layout()
         plt.show()
@@ -290,7 +288,6 @@ class Plot:
             # adjust layout to prevent clipping
             plt.tight_layout()
             plt.savefig(savepath, dpi=300)
-            plt.close()
 
         plt.tight_layout()
         plt.show()
