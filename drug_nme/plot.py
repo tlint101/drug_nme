@@ -9,6 +9,8 @@ from legendkit import legend
 
 __all__ = ["Plot"]
 
+from pandas.conftest import observed
+
 # globally remove grid lines from plot
 plt.rcParams['axes.grid'] = False
 
@@ -74,13 +76,14 @@ class Plot:
 
         if data is None:
             data = self.df
+        # alphabetize the labels
+        data[hue] = pd.Categorical(data[hue], categories=sorted(data[hue].unique()), ordered=True)
 
         plt.figure(figsize=figsize)
 
-        if color_palette:
-            sns.set_palette(color_palette)
+        palette = sns.color_palette(color_palette)
 
-        image = sns.barplot(x=x, y=y, hue=hue, data=data)
+        image = sns.barplot(x=x, y=y, hue=hue, data=data, palette=palette)
 
         # replace plt legend with legendkit
         image.legend_.remove()
@@ -154,7 +157,7 @@ class Plot:
             data = self.df
 
         # Pivot the DataFrame to get types as columns and years as rows
-        pivot_df = data.pivot_table(index=x, columns=groups, values=y, fill_value=0)
+        pivot_df = data.pivot_table(index=x, columns=groups, values=y, fill_value=0, observed=True)
 
         # set color palette
         palette = sns.color_palette(color_palette)
