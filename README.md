@@ -10,9 +10,7 @@ pharmaceutical professionals, and enthusiasts. Keeping track can give insight in
 ay be in the next in the drug pipeline.   
 
 This project, Drug NME, seeks to collect tools to allow users to quickly obtain this information and generate informative 
-charts. Much of the code can be demoed [here](/Tutorial).
-
-More information on the project and the hurdles I had on making the project will be forthcoming.
+charts. Much of the code can be demoed [here](/Tutorials).
 
 ## Tools
 Drug NME obtains information from two methods - Web Scraping the [FDA CDER website for New Drug Approvals](https://www.fda.gov/drugs/development-approval-process-drugs/novel-drug-approvals-fda)
@@ -20,20 +18,21 @@ or utilizing API from two sources - the [OpenFDA](https://open.fda.gov) or the [
 
 ## Installation
 The drug_nme can be installed as follows:
-```python
+```
 pip install drug_nme
 ```
 
 and can be updated using:
-```python
+```
 pip install drug_nme -U
 ```
 
 ## To-Dos
+- [ ] Add module to get chemical name and numbering
 - [ ] Add plot options for FDA sources
 - [ ] Update tutorials
 - [ ] Add additional plot styles
 
 ## Special Thanks
-This repository was inspired from a blog post by [Phyo Phyo Kyaw Zin, PhD](https://drzinph.com/how-to-scrape-fda-drug-approval-data-with-python/).
+This repository was inspired from a blog post by [Phyo Phyo Kyaw Zin, PhD](https://drzinph.com/how-to-scrape-fda-drug-approval-data-with-python/). 
 
