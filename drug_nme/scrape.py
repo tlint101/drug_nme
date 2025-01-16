@@ -214,11 +214,10 @@ class FDAScraper:
             # Combine tables into a single pd.DataFrame
             table = pd.concat(tables, ignore_index=True)
 
-
             # convert the 'date' column to datetime
             # remove possible extra spaces
             table['APPROVAL DATE'] = table['APPROVAL DATE'].str.replace(r'\s+', '', regex=True)
-            table['APPROVAL DATE'] = pd.to_datetime(table['APPROVAL DATE'], format='%m/%d/%Y',  errors='coerce')
+            table['APPROVAL DATE'] = pd.to_datetime(table['APPROVAL DATE'], format='%m/%d/%Y', errors='coerce')
 
             return table
 
@@ -230,7 +229,6 @@ class FDAScraper:
             scrape_data['APPROVAL DATE'] = pd.to_datetime(scrape_data['APPROVAL DATE'], format='%m/%d/%Y')
 
             return scrape_data
-
 
     @staticmethod
     def _extract_nme_table(url):
@@ -388,3 +386,9 @@ def _latest_nme_table(latest_link):
     df = df.drop(columns=['No.'])
 
     return df
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod()

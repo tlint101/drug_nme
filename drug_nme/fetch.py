@@ -69,7 +69,8 @@ class PharmacologyDataFetcher:
             agency_df.columns = [f"{query}_info"]
 
             # split the 'approval_info' column into two columns
-            agency_df[[f'{query}', 'Year']] = agency_df[f"{query}_info"].str.extract(r'([^\(]+)\s*\((\d{4})\)', expand=True)
+            agency_df[[f'{query}', 'Year']] = agency_df[f"{query}_info"].str.extract(r'([^\(]+)\s*\((\d{4})\)',
+                                                                                     expand=True)
 
             agency_df = agency_df.drop(columns=f"{query}_info")
 
@@ -124,6 +125,8 @@ class PharmacologyDataFetcher:
 
 
 """Support functions for Pharmacology data fetcher"""
+
+
 def _check_suffix(row, suffixes, replacement_string):
     if any(row['name'].endswith(suffix) for suffix in suffixes):
         return replacement_string
@@ -341,3 +344,9 @@ def _clean_fda_json(filepath: str = None):
     json_data = json.loads(byte_data.decode('utf-8'))
 
     return json_data
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod()

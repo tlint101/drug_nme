@@ -6,6 +6,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from legendkit import legend
+from typing import Union
 
 __all__ = ["Plot"]
 
@@ -45,7 +46,7 @@ class Plot:
             y: str = 'Count',
             hue: str = 'type',
             title: str = None,
-            color_palette: str or list = None,
+            color_palette: Union[str, list] = None,
             legend_loc: str = None,
             figsize: tuple[float, float] = (10, 5),
             savepath: str = None):
@@ -115,7 +116,7 @@ class Plot:
                 groups: str = 'type',
                 title: str = None,
                 label: bool = True,
-                color_palette: str or list = None,
+                color_palette: Union[str, list] = None,
                 fontsize: int = 8,
                 fontcolor: str = 'black',
                 legend_loc: str = None,
@@ -204,7 +205,7 @@ class Plot:
               data: pd.DataFrame = None,
               title: str = None,
               titlesize: int = 14,
-              color_palette: str or list = None,
+              color_palette: Union[str, list] = None,
               pctdistance: float = 0.8,
               labeldistance: float = 1.1,
               fontsize: int = 10,
@@ -293,3 +294,9 @@ class Plot:
         plt.show()
 
         return image
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod()
