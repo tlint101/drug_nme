@@ -46,7 +46,7 @@ class Plot:
             y: str = 'Count',
             hue: str = 'type',
             title: str = None,
-            color_palette: Union[str, list] = None,
+            palette: Union[str, list] = None,
             legend_loc: str = None,
             figsize: tuple[float, float] = (10, 5),
             savepath: str = None):
@@ -65,7 +65,7 @@ class Plot:
             The column header to set the hue.
         :param title: str
             Set the title of the plot.
-        :param color_palette: str or list
+        :param palette: str or list
             Set the color palette for the plot. Can be single palette name or a list of color names or hex codes.
         :param legend_loc: str
             Set the legend location for the plot.
@@ -81,8 +81,6 @@ class Plot:
         data[hue] = pd.Categorical(data[hue], categories=sorted(data[hue].unique()), ordered=True)
 
         plt.figure(figsize=figsize)
-
-        palette = sns.color_palette(color_palette)
 
         image = sns.barplot(x=x, y=y, hue=hue, data=data, palette=palette)
 
@@ -116,7 +114,7 @@ class Plot:
                 groups: str = 'type',
                 title: str = None,
                 label: bool = True,
-                color_palette: Union[str, list] = None,
+                palette: Union[str, list] = None,
                 fontsize: int = 8,
                 fontcolor: str = 'black',
                 legend_loc: str = None,
@@ -140,7 +138,7 @@ class Plot:
             Set the title of the plot.
         :param label: bool
             Determine annotations on the stacked bar chart.
-        :param color_palette: str or list
+        :param palette: str or list
             Set the color palette for the plot. Can be single palette name or a list of color names or hex codes.
         :param fontsize: int
             Set the fontsize for the annotations.
@@ -159,11 +157,20 @@ class Plot:
         # Pivot the DataFrame to get types as columns and years as rows
         pivot_df = data.pivot_table(index=x, columns=groups, values=y, fill_value=0, observed=True)
 
-        # set color palette
-        palette = sns.color_palette(color_palette)
+        # set seaborn color palette
+        if isinstance(palette, str):
+            num_colors = len(pivot_df.columns)
+            # get colormap
+            colormap = plt.get_cmap(palette, num_colors)
+            # set palette to group numbers
+            adjusted_palette = [colormap(i) for i in range(num_colors)]  # Generate the palette
+        elif isinstance(palette, list):
+            adjusted_palette = palette
+        else:
+            adjusted_palette = None
 
         # Plot stacked bar plot
-        image = pivot_df.plot(kind='bar', stacked=True, figsize=figsize, color=palette)
+        image = pivot_df.plot(kind='bar', stacked=True, figsize=figsize, color=adjusted_palette)
 
         # Add labels, padding and title
         image.set_xlabel('Year', labelpad=15)
@@ -205,7 +212,7 @@ class Plot:
               data: pd.DataFrame = None,
               title: str = None,
               titlesize: int = 14,
-              color_palette: Union[str, list] = None,
+              palette: Union[str, list] = None,
               pctdistance: float = 0.8,
               labeldistance: float = 1.1,
               fontsize: int = 10,
@@ -225,7 +232,7 @@ class Plot:
             Set the title of the plot.
         :param titlesize: int
             Set the titlesize for the plot.
-        :param color_palette: str or list
+        :param palette: str or list
             Set the color palette for the plot.
         :param pctdistance: int
             Set the position of the percentage labels.
@@ -247,8 +254,17 @@ class Plot:
         if data is None:
             data = self.df
 
-        # Set Seaborn color palette
-        color_palette = sns.color_palette(color_palette)
+        # set seaborn color palette
+        if isinstance(palette, str):
+            num_colors = data['type'].nunique() # table must be processed specifically as seen in tutorial
+            # get colormap
+            colormap = plt.get_cmap(palette, num_colors)
+            # set palette to group numbers
+            adjusted_palette = [colormap(i) for i in range(num_colors)]  # Generate the palette
+        elif isinstance(palette, list):
+            adjusted_palette = palette
+        else:
+            adjusted_palette = None
 
         plt.figure(figsize=figsize)
 
@@ -257,7 +273,7 @@ class Plot:
             data['Count'],
             labels=data['type'],
             startangle=90,
-            colors=color_palette,
+            colors=adjusted_palette,
             autopct=lambda pct: f"{int(pct / 100. * sum(data['Count']))}\n({pct:.1f}%)",
             wedgeprops=dict(width=0.4),  # Donut hole size
             textprops={'color': 'black'},
