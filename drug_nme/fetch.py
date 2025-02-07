@@ -27,6 +27,8 @@ class PharmacologyDataFetcher:
         # set link to Guide To Pharmacology
         if url is None:
             self.url = "https://www.guidetopharmacology.org/services/ligands?type=Approved"
+        else:
+            self.url = url
 
         self.data = None
 
