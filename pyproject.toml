@@ -5,6 +5,7 @@ description = "Obtain Novel Drug Approvals"
 authors = ["Tony Eight Lin <tonyelin@tmu.edu.tw>"]
 license = "MIT"
 readme = "README.md"
+repository = "https://github.com/tlint101/drug_nme.git"
 
 [tool.poetry.dependencies]
 python = "^3.9,<3.13"
