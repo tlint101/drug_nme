@@ -13,10 +13,10 @@ from io import BytesIO
 import json
 from urllib.parse import urlparse
 
-__all__ = ["List"]
+__all__ = ["Target"]
 
 
-class List:
+class Target:
     def __init__(self, url: str = None):
         """
         :param url: str
@@ -25,32 +25,79 @@ class List:
         """
         # set link to Guide To Pharmacology
         if url is None:
-            self.url = "https://www.guidetopharmacology.org/services/targets?"
+            self.url = "https://www.guidetopharmacology.org/services/targets"
         else:
             self.url = url
 
         self.data = None
 
-    def get_target(self):
+    def get_target(self, target: str = "all", gene: bool = False):
+        """
+        :param target: str
+            Specify information for a specific protein target. Can be given as a target with a name, such as HER3, or an
+            HGNC gene symbol, such as CATSPER4. If HGNC gene symbol is given, the gene boolean must be set to True. If
+            set to None or "all", all targets will be returned.
+        :param gene: bool
+            Specify if target information is an HGNC gene symbol or common name.
+        """
+
         url = self.url
 
-        json_data = _download_json_with_progress(url)
+        # pull all protein targets
+        if target == "all":
+            return self._all_target(url)
 
-        json_df = pd.json_normalize(json_data)
+        # pull specific protein by HGNC
+        elif target is not "all" and isinstance(target, str) and gene is True:
+            return self._gene_target(target, url)
 
-        return json_df
+        # pull specific protein by name
+        elif target is not "all" and isinstance(target, str) and gene is False:
+            return self._name_target(target, url)
 
-    def get_single_target(self, target: str = None):
-        url = self.url
-
-        json_data = _download_json_with_progress(url)
-
-        json_df = pd.json_normalize(json_data)
-
-        return json_df
+        # error with target input
+        else:
+            raise ValueError(f"Target {target} not recognized!")
 
     def get_target_family(self):
-        pass
+        url = self.url
+
+        url = url + "/families"
+
+        json_data = _download_json_with_progress(url)
+
+        json_df = pd.json_normalize(json_data)
+
+        return json_df
+
+    """
+    Support functions for class List
+    """
+    def _all_target(self, url):
+        """
+        Pull all protein target information
+        """
+        json_data = _download_json_with_progress(url)
+        json_df = pd.json_normalize(json_data)
+        return json_df
+
+    def _gene_target(self, target, url):
+        """
+        Pull all protein target information using HGNC gene name.
+        """
+        url = url + f"?geneSymbol={target}"
+        json_data = _download_json_with_progress(url)
+        json_df = pd.json_normalize(json_data)
+        return json_df
+
+    def _name_target(self, target, url):
+        """
+        Pull all protein target information using protein name.
+        """
+        url = url + f"?name={target}"
+        json_data = _download_json_with_progress(url)
+        json_df = pd.json_normalize(json_data)
+        return json_df
 
 
 """
