@@ -8,6 +8,7 @@ import requests
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+from typing import Union
 import zipfile
 from io import BytesIO
 import json
@@ -33,6 +34,7 @@ class Target:
 
     def get_target(self, target: str = "all", gene: bool = False):
         """
+        Get Target information from Guide to Pharmacology API.
         :param target: str
             Specify information for a specific protein target. Can be given as a target with a name, such as HER3, or an
             HGNC gene symbol, such as CATSPER4. If HGNC gene symbol is given, the gene boolean must be set to True. If
@@ -48,11 +50,11 @@ class Target:
             return self._all_target(url)
 
         # pull specific protein by HGNC
-        elif target is not "all" and isinstance(target, str) and gene is True:
+        elif target != "all" and isinstance(target, str) and gene is True:
             return self._gene_target(target, url)
 
         # pull specific protein by name
-        elif target is not "all" and isinstance(target, str) and gene is False:
+        elif target != "all" and isinstance(target, str) and gene is False:
             return self._name_target(target, url)
 
         # error with target input
@@ -60,6 +62,9 @@ class Target:
             raise ValueError(f"Target {target} not recognized!")
 
     def get_target_family(self):
+        """
+        Get protein family information from Guide to Pharmacology API.
+        """
         url = self.url
 
         url = url + "/families"
@@ -70,9 +75,65 @@ class Target:
 
         return json_df
 
+    def get_ids(self, target_id: Union[str, int] = None, species: str = "Human"):
+        """
+        Get IDs for a given target from the ChEMBL, Ensembl, or UniProtKB database.
+        :param target_id: Union[str, int]
+            The query target_id. The initial query ID must be the targetId from the Guide to pharmacology API.
+        :param species: str
+            Get the IDs for target based on species. Only 'Human', 'Mouse', and 'Rat' are available.
+        """
+        # convert str input into a list
+        if isinstance(target_id, str):
+            target_id = [target_id]
+
+        # ensure species param is capitalized
+        species_cap = species.capitalize()
+
+        if species_cap not in ["Human", "Mouse", "Rat"]:
+            raise ValueError(f"Only 'Human', 'Mouse', and 'Rat', or 'all' are valid species")
+        elif species_cap == "All":
+            species_keep = ["Human", "Mouse", "Rat"]
+        else:
+            species_keep = [species_cap]
+
+        cols_to_drop = ['url']
+        dbs_to_keep = ['ChEMBL Target', 'Ensembl Gene', 'UniProtKB']
+
+        dfs = []
+
+        # get ID numbers
+        for target in tqdm(target_id, desc="Obtaining Target Ids"):
+            # donwload data
+            url = self.url
+            url = url + f"/{target}/databaseLinks"
+            json_data = _download_json_with_progress(url, progress=False)
+            json_df = pd.json_normalize(json_data)
+
+            # drop junk cols
+            json_df = json_df.drop(columns=cols_to_drop)
+
+            # keep species
+            json_df = json_df[json_df['species'].isin(species_keep)]
+
+            # keep dbs
+            json_df = json_df[json_df['database'].isin(dbs_to_keep)]
+
+            # add GtP targetID to column
+            json_df['targetID'] = target
+
+            # add dbs to list
+            dfs.append(json_df)
+
+        # combine dfs
+        df = pd.concat(dfs).reset_index(drop=True)
+
+        return df
+
     """
     Support functions for class List
     """
+
     def _all_target(self, url):
         """
         Pull all protein target information
@@ -99,13 +160,25 @@ class Target:
         json_df = pd.json_normalize(json_data)
         return json_df
 
+    def _filter_human_protein_data(self, json_data):
+        # Convert JSON to DataFrame
+        df = pd.DataFrame(json_data)
+
+        # Define filtering criteria
+        valid_databases = {"ChEMBL Target", "UniProtKB", "Ensembl Gene"}
+
+        # Filter DataFrame
+        filtered_df = df[(df["species"] == "Human") & (df["database"].isin(valid_databases))]
+
+        return filtered_df
+
 
 """
 Support functions for the methods above
 """
 
 
-def _download_json_with_progress(url):
+def _download_json_with_progress(url, progress: bool = True):
     """
     Support function to download the json file and add a progress bar.
     :param url: str
@@ -122,10 +195,15 @@ def _download_json_with_progress(url):
     data = b''
 
     # Use tqdm to display the progress bar
-    for chunk in tqdm(response.iter_content(1024), total=total_size // 1024, unit='KB',
-                      desc='Downloading Data From Guide To Pharmacology'):
-        # Accumulate the data chunks
-        data += chunk
+    if progress:
+        for chunk in tqdm(response.iter_content(1024), total=total_size // 1024, unit='KB',
+                          desc='Downloading Data From Guide To Pharmacology'):
+            # Accumulate the data chunks
+            data += chunk
+    else:
+        for chunk in response.iter_content(1024):
+            # Accumulate the data chunks
+            data += chunk
 
     # Decode the accumulated byte string to a JSON object
     json_guide_data = json.loads(data.decode('utf-8'))
