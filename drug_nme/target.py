@@ -35,38 +35,27 @@ class Target:
         if self.uniprot is None and uniprot_id is None:
             raise AttributeError("You must specify a target Uniprot ID!")
 
-        # if input is a list, loop
-        if isinstance(uniprot_id, list):
-            dfs = []
-            for id in tqdm(uniprot_id, desc=f'Getting Target Data'):
-                target_id, target_type, target_name = self._get_target_id_by_uniprot_id(id)
+        # if input is a str, convert to a list
+        if isinstance(uniprot_id, str):
+            uniprot_id = [uniprot_id]
 
-                # if there is no target_name
-                if target_name == "" or target_name is None:
-                    target_name = self.get_gene_id(id)
-                    # print('New target name:', target_name)
-
-                # # for troubleshooting
-                # print(f"Target Name: {target_name}")
-
-                pull_data = self._get_data_by_target_id(target_id, target_type, target_name)
-                dfs.append(pull_data)
-
-            # combine dataframes
-            data = pd.concat(dfs, ignore_index=True)
-
-        else:
-            target_id, target_type, target_name = self._get_target_id_by_uniprot_id(uniprot_id)
+        dfs = []
+        for id in tqdm(uniprot_id, desc=f'Getting Target Data'):
+            target_id, target_type, target_name = self._get_target_id_by_uniprot_id(id)
 
             # if there is no target_name
-            if target_name == "":
-                target_name = self.get_gene_id(uniprot_id)
-
-                # # for troubleshooting
+            if target_name == "" or target_name is None:
+                target_name = self.get_gene_id(id)
                 # print('New target name:', target_name)
 
+            # # for troubleshooting
+            # print(f"Target Name: {target_name}")
+
             pull_data = self._get_data_by_target_id(target_id, target_type, target_name)
-            data = pull_data
+            dfs.append(pull_data)
+
+            # combine dataframes
+        data = pd.concat(dfs, ignore_index=True)
 
         return data
 
@@ -81,36 +70,25 @@ class Target:
         if self.uniprot is None and uniprot_id is None:
             raise AttributeError("You must specify a target Uniprot ID!")
 
-        # if input is a list, loop
-        if isinstance(uniprot_id, list):
-            ids = {}
-            for id in tqdm(uniprot_id, desc=f'Getting Target Gene ID'):
-                # query uniprot rest
-                url = uniprot_query + f"{id}"
-                response = requests.get(url)
+        # if input is a str, convert to a list
+        if isinstance(uniprot_id, str):
+            uniprot_id = [uniprot_id]
 
-                # pul data
-                if response.status_code == 200:
-                    data = response.json()
-                    # get gene name
-                    gene_name = data.get("genes", [{}])[0].get("geneName", {}).get("value", None)
-                    ids[id] = gene_name
-                elif response.status_code == 400:
-                    print(f"Error: Failed to get data for Uniprot ID: {id}!!")
-            return ids
-        else:
+        ids = {}
+        for id in tqdm(uniprot_id, desc=f'Getting Target Gene ID'):
             # query uniprot rest
-            url = uniprot_query + f"{uniprot_id}"
+            url = uniprot_query + f"{id}"
             response = requests.get(url)
 
+            # pul data
             if response.status_code == 200:
                 data = response.json()
                 # get gene name
                 gene_name = data.get("genes", [{}])[0].get("geneName", {}).get("value", None)
-
-                return gene_name
-            else:
-                return print(f"Error: Failed to get data for {uniprot_id}!!")
+                ids[id] = gene_name
+            elif response.status_code == 400:
+                print(f"Error: Failed to get data for Uniprot ID: {id}!!")
+        return ids
 
     """Support functions"""
 
