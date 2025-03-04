@@ -13,6 +13,7 @@ import zipfile
 from io import BytesIO
 import json
 from urllib.parse import urlparse
+from drug_nme.utils import ligand_url
 
 __all__ = ["FDADataFetcher", "PharmacologyDataFetcher"]
 
@@ -26,7 +27,7 @@ class PharmacologyDataFetcher:
         """
         # set link to Guide To Pharmacology
         if url is None:
-            self.url = "https://www.guidetopharmacology.org/services/ligands?type=Approved"
+            self.url = ligand_url
         else:
             self.url = url
 
