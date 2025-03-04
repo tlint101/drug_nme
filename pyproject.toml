@@ -18,6 +18,8 @@ seaborn = "<=0.13.2"
 legendkit = "<=0.3.4"
 requests = "<=2.32.3"
 beautifulsoup4 = "<=4.12.3"
+hypothesis = "*"
+pytest = "*"
 
 
 [build-system]
