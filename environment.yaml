@@ -16,3 +16,4 @@ dependencies:
       - legendkit
       - hypothesis
       - pytest
+      - notebook
