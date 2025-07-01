@@ -40,12 +40,13 @@ class Target:
             uniprot_id = [uniprot_id]
 
         dfs = []
-        for id in tqdm(uniprot_id, desc=f'Getting Target Data'):
-            target_id, target_type, target_name = self._get_target_id_by_uniprot_id(id)
+        for uni_id in tqdm(uniprot_id, desc=f'Getting Target Data'):
+            target_id, target_type, target_name = self._get_target_id_by_uniprot_id(uni_id)
 
             # if there is no target_name
             if target_name == "" or target_name is None:
-                target_name = self.get_gene_id(id)
+                target_name = self.get_gene_id(uni_id, pbar=False)
+                target_name = next(iter(target_name.values()))  # extract value/target_name from dict
                 # print('New target name:', target_name)
 
             # # for troubleshooting
@@ -59,11 +60,13 @@ class Target:
 
         return data
 
-    def get_gene_id(self, uniprot_id: Optional[Union[str, list]] = None):
+    def get_gene_id(self, uniprot_id: Optional[Union[str, list]] = None, pbar: bool = False):
         """
         Get gene of protein using protein Uniprot ID.
         :param uniprot_id: Optional[Union[str, list]}
             Get gene id for a protein by their Uniprot ID.
+        :param pbar: bool
+            Set progress bar.
         """
         if uniprot_id is None:
             uniprot_id = self.uniprot
@@ -74,10 +77,10 @@ class Target:
         if isinstance(uniprot_id, str):
             uniprot_id = [uniprot_id]
 
-        ids = {}
-        for id in tqdm(uniprot_id, desc=f'Getting Target Gene ID'):
+        id_dict = {}
+        for uni_id in tqdm(uniprot_id, desc=f'Getting Target Gene ID', disable=not pbar):
             # query uniprot rest
-            url = uniprot_query + f"{id}"
+            url = uniprot_query + f"{uni_id}"
             response = requests.get(url)
 
             # pul data
@@ -85,10 +88,10 @@ class Target:
                 data = response.json()
                 # get gene name
                 gene_name = data.get("genes", [{}])[0].get("geneName", {}).get("value", None)
-                ids[id] = gene_name
+                id_dict[uni_id] = gene_name
             elif response.status_code == 400:
-                print(f"Error: Failed to get data for Uniprot ID: {id}!!")
-        return ids
+                print(f"Error: Failed to get data for Uniprot ID: {uni_id}!!")
+        return id_dict
 
     """Support functions"""
 
