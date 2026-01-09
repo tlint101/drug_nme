@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "drug-nme"
-version = "0.1.3"
+version = "0.1.4"
 description = "Get Drug Approvals"
 authors = ["Tony Eight Lin <tonyelin@tmu.edu.tw>"]
 license = "MIT"
@@ -8,7 +8,7 @@ readme = "README.md"
 repository = "https://github.com/tlint101/drug_nme.git"
 
 [tool.poetry.dependencies]
-python = "^3.9,<3.13"
+python = ">=3.10"
 pandas = ">=1.5.0"
 tqdm = "^4.66.4"
 tabula-py = "<=2.9.3"
@@ -16,7 +16,7 @@ JPype1 = "*"
 matplotlib = "<=3.10.1"
 seaborn = "<=0.13.2"
 legendkit = "<=0.3.4"
-requests = "<=2.32.3"
+requests = "*"
 beautifulsoup4 = "<=4.12.3"
 hypothesis = "*"
 pytest = "*"
