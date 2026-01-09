@@ -109,7 +109,10 @@ class Target:
             only_item = target_data[0]
             target_id = only_item["targetId"]
             target_type = only_item["type"]
-            target_name = only_item["abbreviation"]
+
+            # get fallback
+            target_name = only_item.get("abbreviation", "")
+
             return target_id, target_type, target_name
 
         return None
