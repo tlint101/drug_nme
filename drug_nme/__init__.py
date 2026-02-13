@@ -1,5 +1,4 @@
 from .fetch import *
-from .scrape import *
 from .plot import *
 from .target import *
 

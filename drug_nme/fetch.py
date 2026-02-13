@@ -6,14 +6,17 @@ Additional information on their API can be found here: https://www.guidetopharma
 import re
 import os
 import requests
+import datetime
 import numpy as np
 import pandas as pd
+from bs4 import BeautifulSoup
 from tqdm import tqdm
 import zipfile
 from io import BytesIO
 import json
 from urllib.parse import urlparse
-from drug_nme.utils import ligand_url
+from typing import Union
+from drug_nme.utils import ligand_url, FDA_LANDING, DRUGS_FDA, HEADERS, COL_TO_KEEP, NAMED_COLS
 
 __all__ = ["FDADataFetcher", "PharmacologyDataFetcher"]
 
@@ -33,7 +36,7 @@ class PharmacologyDataFetcher:
 
         self.data = None
 
-    def get_data(self, url: str = None, agency: str or list = 'FDA'):
+    def get_data(self, url: str = None, agency: Union[str, list] = 'FDA'):
         """
         Get data from Guide to Pharmacology API and convert into pd.DataFrame.
         :param url: str
@@ -169,90 +172,171 @@ def _extract_approval_info(text):
 
 
 class FDADataFetcher:
-    def __init__(self, path: str = None):
-        """
-        :param path: str
-            Can be a URL link to the JSON file or file path to JSON file on hard disk. If None, will default to openFDA
-            json.zip link.
-        """
-
-        # set link to openFDA
-        if path is None:
-            self.path = "https://download.open.fda.gov/drug/drugsfda/drug-drugsfda-0001-of-0001.json.zip"
-        else:
-            self.path = path
+    def __init__(self):
+        # set link to CDER NME
+        self.landing = FDA_LANDING
+        self.new_drug_approvals = DRUGS_FDA
 
     def get_data(self, path: str = None):
         """
-
+        Get data from the US FDA website.
         :param path: str
             Input string to get data from. If None, it will default to openFDA json link set in the __init__.
         :return:
         """
 
-        global url_type, json_data
+        global url_type, json_data, file_url, df, missing_years
 
         # Check input data as url or filepath
         if path is None:
-            path = self.path
-            url_type = _path_or_url(path=path)
-        else:
-            url_type = _path_or_url(path=path)
+            path = self.landing
 
-        # Check if input is a url or filepath to json file.
-        if url_type == 'url':
-            json_data = _download_json_with_progress(path, type='fda')
-        elif url_type == 'filepath':
-            json_data = _clean_fda_json(filepath=path)
+        current_year = datetime.date.today().year
+        years = [(current_year - year) for year in range(5)]
 
-            # Initialize an empty list to store the flattened data
-        flattened_data = []
+        for year in years:
+            try:
+                response = requests.get(path, headers=HEADERS)  # HEADERS to mimic a webpage
+                soup = BeautifulSoup(response.content, 'html.parser')
 
-        # Iterate through the 'results' list
-        for result in json_data['results']:
-            application_number = result.get('application_number')
+                # look for link to data
+                pattern = f"Compilation of CDER NME and New Biologic Approvals 1985-{year}"
+                link = soup.find('a', string=pattern)
 
-            # Check if the application number starts with "NDA" or "BLA"
-            if application_number.startswith('NDA') or application_number.startswith('BLA'):
-                # Extract the sponsor name
-                sponsor_name = result.get('sponsor_name')
+                if link:
+                    file_url = link.get('href')
+                    link_text = link.get_text(strip=True)
 
-                # Iterate through the 'products' list within each 'result'
-                for product in result.get('products', []):
-                    brand_name = product.get('brand_name', [])
-                    active_ingredients = product.get('active_ingredients', [])
+                    # look for url
+                    if not file_url.startswith('http'):
+                        file_url = "https://www.fda.gov" + file_url
 
-                    # Extract active ingredients names
-                    for ingredient in active_ingredients:
-                        ingredient_name = ingredient.get('name')
+                    # download file
+                    file_response = requests.get(file_url, headers=HEADERS)
+                    file_response.raise_for_status()
+                    break
+            except requests.exceptions.RequestException as e:
+                print(f"ERROR: {e}")
 
-                        # Extract submission information
-                        for submission in result.get('submissions', []):
-                            flattened_item = {
-                                'application_number': application_number,
-                                'sponsor_name': sponsor_name,
-                                'active_ingredient': ingredient_name,
-                                'brand_name': brand_name,
-                                'submission_type': submission.get('submission_type'),
-                                'submission_number': submission.get('submission_number'),
-                                'submission_status': submission.get('submission_status'),
-                                'submission_status_date': submission.get('submission_status_date'),
-                                'review_priority': submission.get('review_priority'),
-                                'submission_class_code': submission.get('submission_class_code'),
-                                'submission_class_code_description': submission.get('submission_class_code_description')
-                            }
-                            flattened_data.append(flattened_item)
+        # convert downloaded data into df
+        try:
+            df = pd.read_csv(file_url)
 
-        # Create a DataFrame from the flattened data
-        df = pd.DataFrame(flattened_data)
+            # clean up col headers
+            df = df[COL_TO_KEEP]
+            df = df.rename(columns=NAMED_COLS)
 
-        # Filter the DataFrame for new molecular entities (e.g., based on submission_class_code or description)
-        nme_df = df[df['submission_class_code_description'].str.contains('New Molecular Entity', na=False, case=False)]
+            # extract missing years
+            max_year = df['Approval Year'].max()
+            missing_years = [(current_year - year) for year in range(current_year - max_year)]
+            # # for debugging
+            # print(missing_years)
+        except:
+            print(f"Data Download Error: {e}")
 
-        # Remove duplicate rows based on 'active_ingredient'
-        nme_df = nme_df.drop_duplicates(subset=['active_ingredient'])
+        # get missing years from Drugs@FDA
+        df2 = self._scrape_fda_drug_approvals(missing_years)
 
-        return nme_df
+        # combine dfs
+        df = pd.concat([df2, df], ignore_index=True)
+        return df
+
+    @staticmethod
+    def _extract_links_from_fda_drugname(table_provided):
+        """
+        Extract hyperlinks and drug names from the HTML table
+        """
+
+        # Initialize lists to store links and names
+        links, names = [], []
+
+        # Iterate through each row in the provided table, excluding the header (first row)
+        for tr in table_provided.select("tr")[1:]:
+            try:
+                # Try to find the first hyperlink in the row
+                trs = tr.find("a")
+
+                # Check if trs is not None before trying to access attributes
+                if trs is not None:
+                    actual_link, name = trs.get('href', ''), trs.get_text()
+                else:
+                    actual_link, name = '', ''
+
+            except (AttributeError, IndexError):
+                # Handle cases where there's an attribute error or indexing error
+                actual_link, name = '', ''
+
+            # Append the extracted link and name to the respective lists
+            links.append(actual_link)
+            names.append(name)
+
+        return links, names
+
+    def _scrape_fda_drug_approvals(self, missing_years: list):
+        """
+        Scrapes FDA drug approvals data from a list of given years. Uses the site from Novel Drug Approvals for X, where
+        X is the missing year.
+        :param missing_years: list
+            A list of years to scrape from the FDA site.
+        """
+
+        tables = []
+
+        # get data for each year
+        for year in missing_years:
+            # # for debugging
+            # print(f"Scraping data for year {year}")
+
+            # url
+            url = f"{self.new_drug_approvals}-{year}"
+            # # for debugging
+            # print(url)
+
+            # get and check request
+            response = requests.get(url, headers=HEADERS)
+            if response.status_code != 200:
+                print(f"Failed to retrieve content for year {year}. Status code: {response.status_code}")
+                continue
+
+            # extract table
+            df_list = pd.read_html(response.content)
+
+            # table check
+            if not df_list:
+                print(f"No tables found for year {year}.")
+                continue
+
+            # process tables
+            df = df_list[0]
+            df.rename(columns={'Date': 'Approval Date', 'Drug  Name': 'Drug Name'}, inplace=True)
+
+            # extract links
+            soup = BeautifulSoup(response.text, 'html.parser')
+            table = soup.find('table')
+
+            # check extracted table
+            if table is None:
+                print(f"No table found for year {year}.")
+                continue  # Skip to the next iteration
+
+            # add links and names to df
+            links, names = self._extract_links_from_fda_drugname(table)
+            df['links'], df['check_names'] = links, names
+
+            # append to tables list
+            tables.append(df)
+
+        # process df
+        df_final = pd.concat(tables, ignore_index=True)
+
+        # drop junk and add additional column info
+        df_final['Approval Date'] = pd.to_datetime(df_final['Approval Date'])
+        df_final['Approval Year'] = df_final['Approval Date'].dt.year
+        df_final['Approval Date'] = df_final['Approval Date'].dt.strftime('%m/%d/%Y')
+
+        df_final = df_final.drop(columns=['No.', 'check_names', 'links', 'FDA-approved use on approval date*'])
+
+        return df_final
 
 
 """
