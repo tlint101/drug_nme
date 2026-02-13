@@ -252,9 +252,9 @@ class FDAPlot:
             class.
         """
         # count values from the input pd.DataFrame
-        count_df = df.groupby(['Approval Year', 'NDA/BLA']).size().reset_index(name='Approval Count')
+        count_df = df.groupby(['Approval Year', 'NME/BLA']).size().reset_index(name='Approval Count')
         # pivot data and split NDA/BLA cols
-        plot_data = count_df.pivot_table(index='Approval Year', columns='NDA/BLA', aggfunc='sum')
+        plot_data = count_df.pivot_table(index='Approval Year', columns='NME/BLA', aggfunc='sum')
         plot_data = plot_data.fillna(0)  # fill NaN
         # rename col headers
         plot_data.columns = plot_data.columns.droplevel(0)

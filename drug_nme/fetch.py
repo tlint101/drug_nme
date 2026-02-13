@@ -225,6 +225,10 @@ class FDADataFetcher:
             # clean up col headers
             df = df[COL_TO_KEEP]
             df = df.rename(columns=NAMED_COLS)
+            df = df.rename(columns={'NDA/BLA': 'NME/BLA'})
+
+            # refactor NDA to NME
+            df['NME/BLA'] = df['NME/BLA'].replace('NDA', 'NME')
 
             # extract missing years
             max_year = df['Approval Year'].max()
@@ -333,7 +337,7 @@ class FDADataFetcher:
         df_final['Approval Date'] = pd.to_datetime(df_final['Approval Date'])
         df_final['Approval Year'] = df_final['Approval Date'].dt.year
         df_final['Approval Date'] = df_final['Approval Date'].dt.strftime('%m/%d/%Y')
-        df_final['NDA/BLA'] = df_final["Active Ingredient"].apply(_infer_ingredient_type)
+        df_final['NME/BLA'] = df_final["Active Ingredient"].apply(_infer_ingredient_type)
 
         df_final = df_final.drop(columns=['No.', 'check_names', 'links', 'FDA-approved use on approval date*'])
 
@@ -436,7 +440,7 @@ def _clean_fda_json(filepath: str = None):
 
 def _infer_ingredient_type(ingredient):
     """
-    Classify active ingredient as 'BLA' or 'NDA'. Will look for specific string patters in active ingredients.
+    Classify active ingredient as 'BLA' or 'NME'. Will look for specific string patters in active ingredients.
     """
     text = str(ingredient).lower().strip()
 
@@ -457,8 +461,8 @@ def _infer_ingredient_type(ingredient):
         if re.search(pattern, text):
             return "BLA"
 
-    # default to 'NDA'
-    return "NDA"
+    # default to 'NME'
+    return "NME"
 
 
 if __name__ == "__main__":
