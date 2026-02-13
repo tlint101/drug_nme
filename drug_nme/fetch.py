@@ -333,6 +333,7 @@ class FDADataFetcher:
         df_final['Approval Date'] = pd.to_datetime(df_final['Approval Date'])
         df_final['Approval Year'] = df_final['Approval Date'].dt.year
         df_final['Approval Date'] = df_final['Approval Date'].dt.strftime('%m/%d/%Y')
+        df_final['NDA/BLA'] = df_final["Active Ingredient"].apply(_infer_ingredient_type)
 
         df_final = df_final.drop(columns=['No.', 'check_names', 'links', 'FDA-approved use on approval date*'])
 
@@ -431,6 +432,33 @@ def _clean_fda_json(filepath: str = None):
     json_data = json.loads(byte_data.decode('utf-8'))
 
     return json_data
+
+
+def _infer_ingredient_type(ingredient):
+    """
+    Classify active ingredient as 'BLA' or 'NDA'. Will look for specific string patters in active ingredients.
+    """
+    text = str(ingredient).lower().strip()
+
+    # BLA pattern
+    biologic_patterns = [
+        r'mab(\b|-[a-z]{4})',  # antibodies
+        r'cept\b',  # fusion proteins (e.g., etanercept)
+        r'cel\b',  # cell therapies (e.g., vicleucel)
+        r'vec\b',  # vectors
+        r'gene\b',  # gene therapies
+        r'ase(\b|-[a-z]{4})',  # enzymes (e.g., hyaluronidase, asfotase)
+        r'toxin\b',  # toxins
+        r'globulin\b',  # blood products
+    ]
+
+    # check pattern
+    for pattern in biologic_patterns:
+        if re.search(pattern, text):
+            return "BLA"
+
+    # default to 'NDA'
+    return "NDA"
 
 
 if __name__ == "__main__":
