@@ -8,8 +8,9 @@ import matplotlib.pyplot as plt
 from legendkit import legend
 from typing import Union
 
-__all__ = ["Plot"]
+__all__ = ["Plot", "FDAPlot"]
 
+from pandas import DataFrame
 from pandas.conftest import observed
 
 # globally remove grid lines from plot
@@ -17,7 +18,7 @@ plt.rcParams['axes.grid'] = False
 
 
 class Plot:
-    def __init__(self, df: pd.DataFrame = None, sort_col: str or list = None):
+    def __init__(self, df: pd.DataFrame = None, sort_col: Union[str, list] = None):
         """
         Parameters to initialize the plots are optional. If given, the pd.DataFrame will be shaped and organized for
         plotting. The pd.DataFrame sources should come from either from openFDA or from Guide to Pharmacology.
@@ -40,16 +41,9 @@ class Plot:
             df = df.head(head)
         return pd.DataFrame(df)
 
-    def bar(self,
-            data: pd.DataFrame = None,
-            x: str = 'Year',
-            y: str = 'Count',
-            hue: str = 'type',
-            title: str = None,
-            palette: Union[str, list] = None,
-            legend_loc: str = None,
-            figsize: tuple[float, float] = (10, 5),
-            savepath: str = None):
+    def bar(self, data: pd.DataFrame = None, x: str = 'Year', y: str = 'Count', hue: str = 'type', width: float = 0.8,
+            title: str = None, palette: Union[str, list] = None, legend_loc: str = None,
+            figsize: tuple[float, float] = (10, 5), savepath: str = None):
         """
         Generate bar plot. Ideally, the pd.DataFrame should be preprocessed upon initialization of Plot. However, it can
         be manually done if users prefer.
@@ -63,6 +57,8 @@ class Plot:
             The column header for the Y-axis.
         :param hue: str
             The column header to set the hue.
+        :param width: float
+            Set the width of the bars in plot.
         :param title: str
             Set the title of the plot.
         :param palette: str or list
@@ -82,7 +78,7 @@ class Plot:
 
         plt.figure(figsize=figsize)
 
-        image = sns.barplot(x=x, y=y, hue=hue, data=data, palette=palette)
+        image = sns.barplot(x=x, y=y, hue=hue, data=data, palette=palette, width=width)
 
         # replace plt legend with legendkit
         image.legend_.remove()
@@ -107,20 +103,10 @@ class Plot:
 
         return image
 
-    def stacked(self,
-                data: pd.DataFrame = None,
-                x: str = 'Year',
-                y: str = 'Count',
-                groups: str = 'type',
-                title: str = None,
-                label: bool = True,
-                palette: Union[str, list] = None,
-                fontsize: int = 8,
-                fontcolor: str = 'black',
-                legend_loc: str = None,
-                figsize: tuple[float, float] = (10, 5),
-                savepath: str = None
-                ):
+    def stacked(self, data: pd.DataFrame = None, x: str = 'Year', y: str = 'Count', groups: str = 'type',
+                width: float = 0.8, title: str = None, label: bool = True, palette: Union[str, list] = None,
+                fontsize: int = 8, fontcolor: str = 'black', legend_loc: str = None,
+                figsize: tuple[float, float] = (10, 5), savepath: str = None):
         """
         Generate stacked bar plot. Ideally, the pd.DataFrame should be preprocessed upon initialization of Plot. However, it can
         be manually done if users prefer.
@@ -134,6 +120,8 @@ class Plot:
             The column header for the Y-axis.
         :param groups: str
             The column header to set the hue.
+        :param width: float
+            Set the width of the bars in plot.
         :param title: str
             Set the title of the plot.
         :param label: bool
@@ -157,71 +145,13 @@ class Plot:
         # Pivot the DataFrame to get types as columns and years as rows
         pivot_df = data.pivot_table(index=x, columns=groups, values=y, fill_value=0, observed=True)
 
-        # set seaborn color palette
-        if isinstance(palette, str):
-            num_colors = len(pivot_df.columns)
-            # get colormap
-            colormap = plt.get_cmap(palette, num_colors)
-            # set palette to group numbers
-            adjusted_palette = [colormap(i) for i in range(num_colors)]  # Generate the palette
-        elif isinstance(palette, list):
-            adjusted_palette = palette
-        else:
-            adjusted_palette = None
+        return _stacked_method(figsize, width, fontcolor, fontsize, label, legend_loc, palette, pivot_df, savepath,
+                               title)
 
-        # Plot stacked bar plot
-        image = pivot_df.plot(kind='bar', stacked=True, figsize=figsize, color=adjusted_palette)
-
-        # Add labels, padding and title
-        image.set_xlabel('Year', labelpad=15)
-        image.set_ylabel('Count', labelpad=15)
-        image.set_title(title)
-
-        if label is not False:
-            # Add numbers on top of each bar segment
-            for p in image.patches:
-                height = p.get_height()
-                if height > 0:  # Only add label if the height is greater than 0
-                    image.text(
-                        p.get_x() + p.get_width() / 2,  # x position in bar
-                        p.get_y() + height / 2,  # y position in bar
-                        int(height),
-                        ha='center',  # horizontal alignment
-                        va='center',  # vertical alignment
-                        fontsize=fontsize,
-                        color=fontcolor
-                    )
-
-        # replace plt legend with legendkit
-        if legend_loc:
-            image.legend_.remove()
-            legend(loc=legend_loc)
-
-        # save fig
-        if savepath:
-            # adjust layout to prevent clipping
-            plt.tight_layout()
-            plt.savefig(savepath, dpi=300)
-
-        plt.tight_layout()
-        plt.show()
-
-        return image
-
-    def donut(self,
-              data: pd.DataFrame = None,
-              title: str = None,
-              titlesize: int = 14,
-              palette: Union[str, list] = None,
-              pctdistance: float = 0.8,
-              labeldistance: float = 1.1,
-              fontsize: int = 10,
-              annotsize: int = 10,
-              annotcolor: str = 'black',
-              legend_loc: str = None,
-              figsize: tuple[float, float] = (10, 5),
-              savepath: str = None
-              ):
+    def donut(self, data: pd.DataFrame = None, title: str = None, titlesize: int = 14, palette: Union[str, list] = None,
+              pctdistance: float = 0.8, labeldistance: float = 1.1, fontsize: int = 10, annotsize: int = 10,
+              annotcolor: str = 'black', legend_loc: str = None, figsize: tuple[float, float] = (10, 5),
+              savepath: str = None):
         """
         Generate a donut plot for drug approvals. Ideally, the pd.DataFrame should be preprocessed upon initialization
         of Plot. The preprocessed pd.DataFrame should then be filtered for the desire year before plotting.
@@ -256,7 +186,7 @@ class Plot:
 
         # set seaborn color palette
         if isinstance(palette, str):
-            num_colors = data['type'].nunique() # table must be processed specifically as seen in tutorial
+            num_colors = data['type'].nunique()  # table must be processed specifically as seen in tutorial
             # get colormap
             colormap = plt.get_cmap(palette, num_colors)
             # set palette to group numbers
@@ -310,6 +240,103 @@ class Plot:
         plt.show()
 
         return image
+
+
+class FDAPlot:
+    def __init__(self, df: pd.DataFrame):
+        """
+        Input pulled FDA information for plotting. This will be lightly processed to obtain the number of drugs
+        approved by a given year.
+        :param df: pd.DataFrame
+            Input pd.DataFrame containing drug approvals. The DataFrame must be obtained from the FDADataFetcher
+            class.
+        """
+        # count values from the input pd.DataFrame
+        count_df = df.groupby(['Approval Year', 'NDA/BLA']).size().reset_index(name='Approval Count')
+        # pivot data and split NDA/BLA cols
+        plot_data = count_df.pivot_table(index='Approval Year', columns='NDA/BLA', aggfunc='sum')
+        plot_data = plot_data.fillna(0)  # fill NaN
+        # rename col headers
+        plot_data.columns = plot_data.columns.droplevel(0)
+        plot_data.columns.name = None
+        self.df = plot_data
+
+    def show(self, head: int = None):
+        """
+        To view the processed pd.DataFrame given during initialization
+        """
+        df = self.df
+        if head:
+            df = df.head(head)
+        return pd.DataFrame(df)
+
+    def stacked(self, years: tuple = None, width: float = 0.8, title: str = None, label: bool = True,
+                palette: Union[str, list] = None, fontsize: int = 8, fontcolor: str = 'white', legend_loc: str = None,
+                figsize: tuple[float, float] = (10, 5), savepath: str = None):
+        data = self.df
+
+        if years:
+            data = data.loc[years[0]:years[1]]
+
+        if title is None:
+            title = "FDA Approved Drugs"
+
+        return _stacked_method(figsize, width, fontcolor, fontsize, label, legend_loc, palette, data, savepath, title)
+
+
+def _stacked_method(figsize: tuple[float, float], width, fontcolor: str, fontsize: int, label: bool,
+                    legend_loc: str | None, palette: str | list | None, pivot_df: DataFrame, savepath: str | None,
+                    title: str | None):
+    # set seaborn color palette
+    if isinstance(palette, str):
+        num_colors = len(pivot_df.columns)
+        # get colormap
+        colormap = plt.get_cmap(palette, num_colors)
+        # set palette to group numbers
+        adjusted_palette = [colormap(i) for i in range(num_colors)]  # Generate the palette
+    elif isinstance(palette, list):
+        adjusted_palette = palette
+    else:
+        adjusted_palette = None
+
+    # Plot stacked bar plot
+    image = pivot_df.plot(kind='bar', stacked=True, width=width, figsize=figsize, color=adjusted_palette)
+
+    # Add labels, padding and title
+    image.set_xlabel('Year', labelpad=15)
+    image.set_ylabel('Count', labelpad=15)
+    image.set_title(title)
+
+    if label is not False:
+        # Add numbers on top of each bar segment
+        for p in image.patches:
+            height = p.get_height()
+            if height > 0:  # Only add label if the height is greater than 0
+                image.text(
+                    p.get_x() + p.get_width() / 2,  # x position in bar
+                    p.get_y() + height / 2,  # y position in bar
+                    int(height),
+                    ha='center',  # horizontal alignment
+                    va='center',  # vertical alignment
+                    fontsize=fontsize,
+                    color=fontcolor
+                )
+
+    # replace plt legend with legendkit
+    if legend_loc:
+        image.legend_.remove()
+        legend(loc=legend_loc)
+
+    # save fig
+    if savepath:
+        # adjust layout to prevent clipping
+        plt.tight_layout()
+        plt.savefig(savepath, dpi=300)
+
+    plt.tight_layout()
+    plt.show()
+
+    return image
 
 
 if __name__ == "__main__":
