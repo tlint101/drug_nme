@@ -21,3 +21,89 @@ COL_TO_KEEP = ["Proprietary  Name", "Active Ingredient/Moiety", "NDA/BLA", "Rout
                "FDA Approval Date", "Approval Year", "Orphan Drug Designation"]
 NAMED_COLS = {'Proprietary  Name': 'Drug Name', 'Active Ingredient/Moiety': 'Active Ingredient',
               'FDA Approval Date': 'Approval Date', }
+
+# for drugs not found in ChEMBL
+DRUG_OVERRIDE = {
+    # Stubborn Biologics & Toxins
+    'imetelstat': 'Oligonucleotide',
+    'defibrotide sodium': 'Oligonucleotide',
+    'letibotulinumtoxina': 'Protein',
+    'letibotulinumtoxina-wlbg': 'Protein',
+    'abobotulinumtoxina': 'Protein',
+    'incobotulinumtoxina': 'Protein',
+    'prabotulinumtoxina-xvfs': 'Protein',
+    'daxibotulinumtoxina-lanm': 'Protein',
+
+    # Antibodies & ADCs
+    'garadacimab-gxii': 'Antibody',
+    'fam-trastuzumab deruxtecan-nxki': 'Antibody',
+    'muromonab-cd3': 'Antibody',
+
+    # Recombinant Proteins, Peptides & Enzymes
+    'calcitonin (human)': 'Protein',
+    'lispro insulin': 'Protein',
+    'mecasermin (rdna origin)': 'Protein',
+    'mecasermin rinfabate (rdna origin)': 'Protein',
+    'clostridial collagenase histolyticum': 'Protein',
+    'asparaginase erwinia chrysanthemi (recombinant)-rywn': 'Protein',
+    'teduglutide (rdna origin)': 'Protein',
+    'aprotinin': 'Protein',
+    'dasiglucagon': 'Protein',
+
+    # Lung Surfactants (Lipid-Protein Complexes)
+    'beractant': 'Protein',
+    'calfactant': 'Protein',
+    'poractant': 'Protein',
+    'lucinactant': 'Protein',
+
+    # Oligosaccharides / Sugars
+    'danaparoid sodium': 'Oligosaccharide',
+    'icodextrin': 'Oligosaccharide',
+
+    # FDA Typos
+    'clofarbine': 'Small molecule',
+    'ibutilide fumurate': 'Small molecule',
+
+    # Radiopharmaceuticals & Isotopes
+    'iofetamine hydrochloride  i 123': 'Small molecule',
+    'rubidium rb 82 chloride': 'Small molecule',
+    'strontium 89 chloride': 'Small molecule',
+    '13 c urea': 'Small molecule',
+    '14 c urea': 'Small molecule',
+    'choline c 11': 'Small molecule',
+    'florbetaben f 18': 'Small molecule',
+    'fluoroestradiol f 18': 'Small molecule',
+    'copper cu 64 dotatate': 'Small molecule',
+    'piflufolastat f 18': 'Small molecule',
+    'xenon xe 129 hyperpolarized': 'Small molecule',
+
+    # Complex Combination Drugs & specific salts
+    'rimexalone': 'Small molecule',
+    'biskalcitrate, metronidazole, tetracycline hydrochloride': 'Small molecule',
+    'methylnaltrexone bromide': 'Small molecule',
+    'estradiol valerate; estradiol valerate and dienogest': 'Small molecule',
+    'cabotegravir; rilpivirine (co-packaged)': 'Small molecule',
+    'vonoprazan; amoxicillin; clarithromycin (co-packaged)': 'Small molecule',
+    'sulbactam; durlobactam (co-packaged)': 'Small molecule',
+    'nirmatrelvir; ritonavir (co-packaged)': 'Small molecule',
+    'conjugated estrogens and bazedoxifene': 'Small molecule',
+
+    # Complex Polymers, Minerals, Extracts & Microspheres
+    'perfluoroalkylpolyether, polytetrafluoroethylene': 'Small molecule',
+    'perflutren lipid microsphere': 'Small molecule',
+    'iotrolan': 'Small molecule',
+    'iodixanol': 'Small molecule',
+    'bentoquatam': 'Small molecule',
+    'ferumoxides': 'Small molecule',
+    'ferumoxsil': 'Small molecule',
+    'sodium ferric gluconate complex': 'Small molecule',
+    'monooctanoin': 'Small molecule',
+    'ivermectin': 'Small molecule',
+    'colesevelam hydrochloride': 'Small molecule',
+    'kunecatechins': 'Small molecule',
+    'fish oil triglycerides': 'Small molecule',
+
+    # 2026 drugs, remove in future updates
+    'milsaperidone': 'Small molecule',
+    'copper histidinate': 'Small molecule',
+}
