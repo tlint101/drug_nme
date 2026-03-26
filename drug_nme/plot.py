@@ -243,22 +243,27 @@ class Plot:
 
 
 class FDAPlot:
-    def __init__(self, df: pd.DataFrame):
+    def __init__(self, df: pd.DataFrame, sort_col: Union[str, list] = None):
         """
         Input pulled FDA information for plotting. This will be lightly processed to obtain the number of drugs
         approved by a given year.
         :param df: pd.DataFrame
             Input pd.DataFrame containing drug approvals. The DataFrame must be obtained from the FDADataFetcher
             class.
+        :param sort_col: Union[str, list]
+            The name of the column for processing. Name should match that of the existing column headers from the
+            pd.DataFrame.
         """
-        # count values from the input pd.DataFrame
-        count_df = df.groupby(['Approval Year', 'NME/BLA']).size().reset_index(name='Approval Count')
-        # pivot data and split NDA/BLA cols
-        plot_data = count_df.pivot_table(index='Approval Year', columns='NME/BLA', aggfunc='sum')
-        plot_data = plot_data.fillna(0)  # fill NaN
-        # rename col headers
-        plot_data.columns = plot_data.columns.droplevel(0)
-        plot_data.columns.name = None
+        # get columns for approval, NME/BLA, and type and convert into separate cols
+        subset_df = df[['Approval Year', 'NME/BLA', 'Type']]
+        encoded_df = pd.get_dummies(subset_df, columns=['NME/BLA', 'Type'], prefix='', prefix_sep='', dtype=int)
+
+        # group by yera and sum cols
+        plot_data = encoded_df.groupby('Approval Year').sum()
+
+        if sort_col:
+            plot_data = df.groupby(sort_col).size().reset_index(name='Count')
+
         self.df = plot_data
 
     def show(self, head: int = None):
@@ -270,9 +275,9 @@ class FDAPlot:
             df = df.head(head)
         return pd.DataFrame(df)
 
-    def stacked(self, years: tuple = None, width: float = 0.8, title: str = None, label: bool = True,
-                palette: Union[str, list] = None, fontsize: int = 8, fontcolor: str = 'white', legend_loc: str = None,
-                figsize: tuple[float, float] = (10, 5), savepath: str = None):
+    def stacked(self, cols: list = None, years: tuple = None, width: float = 0.8, title: str = None,
+                label: bool = True, palette: Union[str, list] = None, fontsize: int = 8, fontcolor: str = 'white',
+                legend_loc: str = None, figsize: tuple[float, float] = (10, 5), savepath: str = None):
         data = self.df
 
         if years:
@@ -281,11 +286,114 @@ class FDAPlot:
         if title is None:
             title = "FDA Approved Drugs"
 
+        if cols is None:
+            data = data[['BLA', 'NME']]
+        else:
+            data = data[cols]
+
         return _stacked_method(figsize, width, fontcolor, fontsize, label, legend_loc, palette, data, savepath, title)
+
+    def donut(self, data: pd.DataFrame = None, title: str = None, titlesize: int = 14, palette: Union[str, list] = None,
+              pctdistance: float = 0.8, labeldistance: float = 1.1, fontsize: int = 10, annotsize: int = 10,
+              annotcolor: str = 'black', legend_loc: str = None, figsize: tuple[float, float] = (10, 5),
+              savepath: str = None):
+        """
+        Generate a donut plot for drug approvals. Ideally, the pd.DataFrame should be preprocessed upon initialization
+        of Plot. The preprocessed pd.DataFrame should then be filtered for the desire year before plotting.
+        :param data: pd.DataFrame
+            Input query pd.DataFrame. Should be processed. Function can only accept data that has been sliced by year.
+        :param title: str
+            Set the title of the plot.
+        :param titlesize: int
+            Set the titlesize for the plot.
+        :param palette: str or list
+            Set the color palette for the plot.
+        :param pctdistance: int
+            Set the position of the percentage labels.
+        :param labeldistance: int
+            Set the position of the category labels.
+        :param fontsize: int
+            Set the fontsize for the annotations.
+        :param annotsize: int
+            Set the annotation fontsize.
+        :param annotcolor: str
+            St the font color for the annotations.
+        :param legend_loc: str
+            Set the positions of the figure ligand.
+        :param figsize: tuple
+            Set the size of the figure.
+        :param savepath: str
+            Set the save location for the plot.
+        """
+        if data is None:
+            data = self.df
+
+        # check if data is formatted for donut plot
+        if data.get('Count') is None:
+            raise KeyError(
+                f" Error: The column 'Count' is missing! Did you try processing it using the 'sort_col' param in FDAPlot()?")
+
+        # set seaborn color palette
+        if isinstance(palette, str):
+            num_colors = data['Type'].nunique()  # table must be processed specifically as seen in tutorial
+            # get colormap
+            colormap = plt.get_cmap(palette, num_colors)
+            # set palette to group numbers
+            adjusted_palette = [colormap(i) for i in range(num_colors)]  # Generate the palette
+        elif isinstance(palette, list):
+            adjusted_palette = palette
+        else:
+            adjusted_palette = None
+
+        plt.figure(figsize=figsize)
+
+        # plot the pie chart
+        wedges, texts, autotexts = plt.pie(
+            data['Count'],
+            labels=data['Type'],
+            startangle=90,
+            colors=adjusted_palette,
+            autopct=lambda pct: f"{int(pct / 100. * sum(data['Count']))}\n({pct:.1f}%)",
+            wedgeprops=dict(width=0.4, linewidth=0),  # Donut hole size
+            textprops={'color': 'black'},
+            pctdistance=pctdistance,
+            labeldistance=labeldistance
+        )
+
+        for text in autotexts:
+            text.set_fontsize(annotsize)
+            text.set_color(annotcolor)
+
+        # draw a circle at the center of the plot
+        image = plt.Circle((0, 0), 0.6, color='white')  # Smaller radius for a smaller hole
+        plt.gca().add_artist(image)
+
+        # equal aspect ratio ensures that pie is drawn as a circle
+        plt.axis('equal')
+
+        if legend_loc:
+            legend(loc=legend_loc)
+
+        # set label font size
+        plt.setp(texts, fontsize=fontsize)
+
+        if title:
+            plt.title(title, pad=15, fontsize=titlesize)
+
+        if savepath:
+            # adjust layout to prevent clipping
+            plt.tight_layout()
+            plt.savefig(savepath, dpi=300)
+
+        plt.tight_layout()
+        plt.show()
+
+        return image
 
 
 def _stacked_method(figsize: tuple[float, float], width, fontcolor: str, fontsize: int, label: bool,
-                    legend_loc: str | None, palette: str | list | None, pivot_df: DataFrame, savepath: str | None,
+                    legend_loc: str | None, palette: str | list | tuple | None, pivot_df: DataFrame,
+                    savepath: str | None,
                     title: str | None):
     # set seaborn color palette
     if isinstance(palette, str):
@@ -300,7 +408,8 @@ def _stacked_method(figsize: tuple[float, float], width, fontcolor: str, fontsiz
         adjusted_palette = None
 
     # Plot stacked bar plot
-    image = pivot_df.plot(kind='bar', stacked=True, width=width, figsize=figsize, color=adjusted_palette)
+    image = pivot_df.plot(kind='bar', stacked=True, width=width, figsize=figsize, color=adjusted_palette,
+                          edgecolor=None, linewidth=0)
 
     # Add labels, padding and title
     image.set_xlabel('Year', labelpad=15)
