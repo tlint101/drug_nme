@@ -296,14 +296,17 @@ class FDADataFetcher:
         if data is None:
             data = self.data
 
-        # string search
-        suffixes = ['nib', 'tib', 'lib', 'belumosudil', 'sirolimus', 'everolimus', 'midostaurin', 'netarsudil']
+        # set kinase pattern
+        salt_removal = [' sulfate', ' chloride', ' hydrochloride', ' sodium', ' potassium', ' mesylate', ' acetate',
+                        ' maleate']
+        kinase_stem = ['nib', 'tib', 'lib', 'belumosudil', 'sirolimus', 'everolimus', 'midostaurin', 'netarsudil']
+        pattern = r"(?:" + "|".join(kinase_stem) + r")(?:$|" + "|".join(salt_removal) + r")$"
 
-        # Apply the function to the DataFrame
-        data['Type'] = data.apply(
-            lambda row: _check_suffix(row, suffixes, label, col_name='Active Ingredient', col_output='Type'), axis=1)
+        # look for matches to patter, else keep original label
+        data['Type'] = np.where(data['Active Ingredient'].str.contains(pattern, regex=True, na=False), 'Kinase',
+                                data['Type'])
 
-        return pd.DataFrame(data)
+        return data
 
     def _fetch_chembl_types(self, raw_name):
         """
