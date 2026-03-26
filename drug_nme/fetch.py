@@ -16,7 +16,9 @@ from io import BytesIO
 import json
 from urllib.parse import urlparse
 from typing import Union
-from drug_nme.utils import ligand_url, FDA_LANDING, DRUGS_FDA, HEADERS, COL_TO_KEEP, NAMED_COLS
+from concurrent.futures import ThreadPoolExecutor
+from chembl_webresource_client.new_client import new_client
+from drug_nme.utils import ligand_url, FDA_LANDING, DRUGS_FDA, HEADERS, COL_TO_KEEP, NAMED_COLS, DRUG_OVERRIDE
 
 __all__ = ["FDADataFetcher", "PharmacologyDataFetcher"]
 
@@ -68,7 +70,7 @@ class PharmacologyDataFetcher:
         # Apply the extract_approval_info function for each query
         for query in agency_list:
             # apply the function to each row
-            extracted_series = json_df['approvalSource'].apply(_extract_approval_info)
+            extracted_series = json_df['approvalSource'].apply(lambda x: _extract_approval_info(x, query))
 
             # convert Series to DataFrame and rename table
             agency_df = extracted_series.to_frame()
@@ -133,10 +135,10 @@ class PharmacologyDataFetcher:
 """Support functions for Pharmacology data fetcher"""
 
 
-def _check_suffix(row, suffixes, replacement_string):
-    if any(row['name'].endswith(suffix) for suffix in suffixes):
+def _check_suffix(row, suffixes, replacement_string, col_name='name', col_output='type'):
+    if any(row[col_name].endswith(suffix) for suffix in suffixes):
         return replacement_string
-    return row['type']
+    return row[col_output]
 
 
 def _check_agency_input(agency: str = None):
@@ -152,21 +154,30 @@ def _check_agency_input(agency: str = None):
         return agency.capitalize()
 
 
-def _extract_approval_info(text):
+def _extract_approval_info(text, agency_name):
+    if pd.isna(text) or not str(text).strip():
+        return None
+
+    text = str(text)
+
     # Regular expression to match 'FDA (year)' with various noise patterns
-    match = re.search(r'\bFDA\b[^()]*\(\s*(\d{4})\s*\)', text, re.IGNORECASE)
+    match = re.search(rf'\b{agency_name}\b[^()]*\(\s*(\d{{4}})\s*\)', text, re.IGNORECASE)
     if match:
-        return f"FDA ({match.group(1)})"
+        return f"{agency_name} ({match.group(1)})"
+
+    match_alternative = re.search(rf'\b{agency_name}\b[^()]*\(\s*(\d{{4}})\s*(?:[^)]*)?\)', text, re.IGNORECASE)
+    if match_alternative:
+        return f"{agency_name} ({match_alternative.group(1)})"
 
     # Handling cases where the year might be mentioned with some variations
     match_alternative = re.search(r'\bFDA\b[^()]*\(\s*(\d{4})\s*(?:[^)]*)?\)', text, re.IGNORECASE)
     if match_alternative:
         return f"FDA ({match_alternative.group(1)})"
 
-    # Additional cases where 'FDA' might be separated by other characters or words
-    match_fallback = re.search(r'\bFDA\b.*\b(\d{4})\b', text, re.IGNORECASE)
+    # Fallback to stop at first 4 digits after agency name
+    match_fallback = re.search(rf'\b{agency_name}\b.*?\b(\d{{4}})\b', text, re.IGNORECASE)
     if match_fallback:
-        return f"FDA ({match_fallback.group(1)})"
+        return f"{agency_name} ({match_fallback.group(1)})"
 
     return None
 
@@ -176,8 +187,9 @@ class FDADataFetcher:
         # set link to CDER NME
         self.landing = FDA_LANDING
         self.new_drug_approvals = DRUGS_FDA
+        self.data = None
 
-    def get_data(self, path: str = None):
+    def get_data(self, path: str = None) -> pd.DataFrame:
         """
         Get data from the US FDA website.
         :param path: str
@@ -243,7 +255,117 @@ class FDADataFetcher:
 
         # combine dfs
         df = pd.concat([df2, df], ignore_index=True)
+        self.data = df
         return df
+
+    def add_types(self, data: pd.DataFrame = None) -> pd.DataFrame:
+        """
+        Takes the dataframe from the get_data(), cleans the active ingredient names, and queries their data on ChEMBL
+        and append a 'Type' column.
+        :param data: pd.DataFrame
+            A dataframe from the get_data() function.
+        :return:
+        """
+        if data is None:
+            data = self.data
+        data = data.copy()
+        if 'Active Ingredient' not in data.columns:
+            print("Error: 'Active Ingredient' column not found in dataframe.")
+            return data
+
+        # multi threading
+        names_list = data['Active Ingredient'].tolist()
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            results = list(tqdm(executor.map(self._fetch_chembl_types, names_list),
+                                total=len(names_list), desc="Fetching Drug Types From ChEMBL"))
+        data['Type'] = results
+
+        self.data = data
+
+        return data
+
+    def make_kinase_label(self, data: pd.DataFrame = None, label: str = 'Kinase'):
+        """
+        Relabel drugs as Kinase. Function currently table pulled from the get_data() function. The kinases are labeled
+        based on the suffix or unique names. This can be seen under the suffix list.
+        :param data: pd.DataFrame
+            Input DataFrame pulled from get_data() function.
+        :param label: str
+            New label. By default, it is "Kinase".
+        """
+        if data is None:
+            data = self.data
+
+        # string search
+        suffixes = ['nib', 'tib', 'lib', 'belumosudil', 'sirolimus', 'everolimus', 'midostaurin', 'netarsudil']
+
+        # Apply the function to the DataFrame
+        data['Type'] = data.apply(
+            lambda row: _check_suffix(row, suffixes, label, col_name='Active Ingredient', col_output='Type'), axis=1)
+
+        return pd.DataFrame(data)
+
+    def _fetch_chembl_types(self, raw_name):
+        """
+        Support function to clean the data from the FDA data from the get_data() function. This will add the drug type
+        from the ChEMBL database.
+        """
+        if pd.isna(raw_name) or not isinstance(raw_name, str):
+            return "Unknown"
+
+        # set chembl client
+        molecule_client = new_client.molecule
+
+        # # prep table
+        # clean_name = raw_name.strip().lower()
+
+        # strip hidden \xa0 space
+        clean_name = raw_name.replace('\xa0', ' ').strip().lower()
+
+        # add manual overrides for specific types not found in ChEMBL
+        if clean_name in DRUG_OVERRIDE:
+            return DRUG_OVERRIDE[clean_name]
+
+        # remove parentheses
+        clean_name = re.sub(r'\(.*?\)', '', clean_name).strip()
+
+        # handle name combinations
+        if ' and ' in clean_name or ',' in clean_name:
+            clean_name = clean_name.replace(' and ', ',')
+            clean_name = clean_name.split(',')[0].strip()
+
+        # remove FDA biologic suffixes ("-abcd")
+        clean_name = re.sub(r'-[a-z]{4}$', '', clean_name)
+
+        # identify adn remove potential salt name
+        salt_removal = [' sulfate', ' chloride', ' hydrochloride', ' sodium', ' potassium', ' mesylate', ' acetate',
+                        ' maleate']
+        for salt in salt_removal:
+            if clean_name.endswith(salt):
+                clean_name = clean_name.replace(salt, '')
+
+        # query ChEMBL
+        try:
+            # for exact name match
+            res = molecule_client.filter(pref_name__iexact=clean_name).only('molecule_type')
+            if len(res) > 0:
+                return res[0].get('molecule_type', 'Unknown')
+
+            # if name fail, try synonym
+            res_syn = molecule_client.filter(molecule_synonyms__molecule_synonym__iexact=clean_name).only(
+                'molecule_type')
+            if len(res_syn) > 0:
+                return res_syn[0].get('molecule_type', 'Unknown')
+
+            # if above fails, try partial matches (salt form)
+            res_partial = molecule_client.filter(pref_name__icontains=clean_name).only('molecule_type')
+            if len(res_partial) > 0:
+                return res_partial[0].get('molecule_type', 'Unknown')
+
+        except Exception as e:
+            return f"Error {e}"
+
+        return "Not Found in ChEMBL"
 
     @staticmethod
     def _extract_links_from_fda_drugname(table_provided):
