@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "drug-nme"
-version = "0.1.4"
+version = "2026.2"
 description = "Get Drug Approvals"
 authors = ["Tony Eight Lin <tonyelin@tmu.edu.tw>"]
 license = "MIT"
@@ -8,20 +8,29 @@ readme = "README.md"
 repository = "https://github.com/tlint101/drug_nme.git"
 
 [tool.poetry.dependencies]
-python = ">=3.10"
-pandas = ">=1.5.0"
-tqdm = "^4.66.4"
+python = "^3.11"
+pandas = ">=2.3.3"
+numpy = "^2.4.2"
+tqdm = "^4.67.3"
 tabula-py = "<=2.9.3"
 JPype1 = "*"
-matplotlib = "<=3.10.1"
+matplotlib = ">=3.10.1"
 seaborn = "<=0.13.2"
-legendkit = "<=0.3.4"
+legendkit = "<=0.3.6"
 requests = "*"
-beautifulsoup4 = "<=4.12.3"
+beautifulsoup4 = "^4.14.3"
 hypothesis = "*"
 pytest = "*"
-
+lxml = "^6.0.2"
+camelot-py = { extras = ["base"], version = "^1.0.9" }
+chembl-webresource-client = "^0.10.9"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "jupyter (>=1.1.1,<2.0.0)",
+    "ipykernel (>=7.2.0,<8.0.0)",
+]
