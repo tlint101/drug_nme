@@ -254,12 +254,16 @@ class FDAPlot:
             The name of the column for processing. Name should match that of the existing column headers from the
             pd.DataFrame.
         """
-        # get columns for approval, NME/BLA, and type and convert into separate cols
-        subset_df = df[['Approval Year', 'NME/BLA', 'Type']]
-        encoded_df = pd.get_dummies(subset_df, columns=['NME/BLA', 'Type'], prefix='', prefix_sep='', dtype=int)
+        # get columns for approval, NME/BLA, and type and convert into separate cols. 'Type' is optional
+        if 'Type' in df.columns:
+            subset_df = df[['Approval Year', 'NME/BLA', 'Type']]
+            subset_df = pd.get_dummies(subset_df, columns=['NME/BLA', 'Type'], prefix='', prefix_sep='', dtype=int)
+        else:
+            subset_df = df[['Approval Year', 'NME/BLA']]
+            subset_df = pd.get_dummies(subset_df, columns=['NME/BLA'], prefix='', prefix_sep='', dtype=int)
 
-        # group by yera and sum cols
-        plot_data = encoded_df.groupby('Approval Year').sum()
+        # group by year and sum cols
+        plot_data = subset_df.groupby('Approval Year').sum()
 
         if sort_col:
             plot_data = df.groupby(sort_col).size().reset_index(name='Count')
