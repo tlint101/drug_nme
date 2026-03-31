@@ -12,15 +12,98 @@ import pandas as pd
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 import zipfile
-from io import BytesIO
 import json
+from io import BytesIO, StringIO
 from urllib.parse import urlparse
 from typing import Union
 from concurrent.futures import ThreadPoolExecutor
 from chembl_webresource_client.new_client import new_client
 from drug_nme.utils import ligand_url, FDA_LANDING, DRUGS_FDA, HEADERS, COL_TO_KEEP, NAMED_COLS, DRUG_OVERRIDE
 
-__all__ = ["FDADataFetcher", "PharmacologyDataFetcher"]
+__all__ = ["FDADataFetcher", "PharmacologyDataFetcher", "_ChemblDataFetcher"]
+
+
+class _ChemblDataFetcher:  # todo process data pulled from ChEMBL
+    def __init__(self):
+        # Initialize the ChEMBL molecule client
+        self.chembl_client = new_client.molecule
+        self.data = None
+
+    def get_approved_drugs(self, year: int = None):
+        """
+        Pulls approved drugs from ChEMBL.
+        If a year is provided, it only pulls drugs first approved in that year.
+        """
+        # In ChEMBL, max_phase = 4 means it is an approved drug
+        query = self.chembl_client.filter(max_phase=4)
+
+        # If you only want a specific year, add it to the filter
+        if year:
+            query = query.filter(first_approval=year)
+
+        # 1. Ask ChEMBL for the total number of records so tqdm knows where 100% is
+        total_records = len(query)
+
+        if total_records == 0:
+            print(f"No approved drugs found for year {year}.")
+            return pd.DataFrame()
+
+        # 2. Fetch the data one by one to feed the progress bar
+        results = []
+        for record in tqdm(query, total=total_records, desc="Downloading ChEMBL Data"):
+            results.append(record)
+
+        df = pd.DataFrame(results)
+
+        if df.empty:
+            print(f"No approved drugs found for year {year}!")
+            return df
+
+        # Filter down to the specific columns you care about
+        cols_to_keep = [
+            'molecule_chembl_id',
+            'pref_name',  # The standard name of the drug
+            'first_approval',  # The year it was approved
+            'molecule_type',  # Small molecule, Antibody, Protein, etc.
+            'max_phase',  # Will be 4
+            'withdrawn_flag'  # True if it was pulled from the market
+        ]
+
+        # Some older drugs might be missing fields, so we only select columns that exist
+        existing_cols = [col for col in cols_to_keep if col in df.columns]
+        processed_df = df[existing_cols].copy()
+
+        # Remove drugs that have been withdrawn from the market
+        if 'withdrawn_flag' in processed_df.columns:
+            processed_df = processed_df[processed_df['withdrawn_flag'] == False]
+            processed_df = processed_df.drop(columns=['withdrawn_flag'])
+
+        # Clean up missing names or years
+        processed_df = processed_df.dropna(subset=['pref_name'])
+
+        if 'first_approval' in processed_df.columns:
+            processed_df['first_approval'] = processed_df['first_approval'].astype('Int64')
+
+        # Rename columns to be cleaner
+        processed_df = processed_df.rename(columns={
+            'molecule_chembl_id': 'ChEMBL_ID',
+            'pref_name': 'Name',
+            'first_approval': 'Year',
+            'molecule_type': 'Type'
+        })
+
+        # Keep drugs following CDER like rules
+        cder_types = [
+            'Small molecule',
+            'Antibody',
+            'Protein',
+            'Oligonucleotide'
+        ]
+        if 'Type' in processed_df.columns:
+            processed_df = processed_df[processed_df['Type'].isin(cder_types)]
+
+        self.data = processed_df
+        return self.data
 
 
 class PharmacologyDataFetcher:
@@ -428,7 +511,7 @@ class FDADataFetcher:
                 continue
 
             # extract table
-            df_list = pd.read_html(response.content)
+            df_list = pd.read_html(StringIO(response.text))
 
             # table check
             if not df_list:
