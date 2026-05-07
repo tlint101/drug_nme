@@ -330,7 +330,7 @@ class FDADataFetcher:
             missing_years = [(current_year - year) for year in range(current_year - max_year)]
             # # for debugging
             # print(missing_years)
-        except:
+        except Exception as e:
             print(f"Data Download Error: {e}")
 
         # get missing years from Drugs@FDA
