@@ -282,6 +282,32 @@ class FDAPlot:
     def stacked(self, cols: list = None, years: tuple = None, width: float = 0.8, title: str = None,
                 label: bool = True, palette: Union[str, list] = None, fontsize: int = 8, fontcolor: str = 'white',
                 legend_loc: str = None, figsize: tuple[float, float] = (10, 5), savepath: str = None):
+        """
+        Generate stacked bar plot. Ideally, the pd.DataFrame should be preprocessed upon initialization of Plot. However, it can
+        be manually done if users prefer.
+        :param cols: list
+            A list of column data to plot. Each column data will be stacked for a given Approval Year.
+        :param years: tuple
+            The year range to for FDA approval for plotting.
+        :param width: float
+            Set the width of the bars in the plot.
+        :param title: str
+            Set the title for the plot.
+        :param label: bool
+            Annotate the stacked bars with numbers for each stacked section.
+        :param palette: Union[str, list]
+            Set teh color palette of the plot.
+        :param fontsize: int
+            Set the size of the font.
+        :param fontcolor: str
+            Set the fontcolor for the plot annotations and labels.
+        :param legend_loc: str
+            Set the location of the figure legend.
+        :param figsize: tuple
+            Set the size of the figure.
+        :param savepath: str
+            Set the path for saving the figure.
+        """
         data = self.df
 
         if years:
