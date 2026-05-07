@@ -29,7 +29,6 @@ pip install drug_nme -U
 
 ## To-Dos
 - [ ] Add module to get chemical name and numbering
-- [ ] Add plot options for FDA sources
 - [ ] Update tutorials
 - [ ] Add additional plot styles
 
