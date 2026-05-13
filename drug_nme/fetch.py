@@ -314,8 +314,9 @@ class FDADataFetcher:
                 print(f"ERROR: {e}")
 
         # convert downloaded data into df
+        missing_years = []
         try:
-            df = pd.read_csv(file_url)
+            df = pd.read_excel(file_url)
 
             # clean up col headers
             df = df[COL_TO_KEEP]
