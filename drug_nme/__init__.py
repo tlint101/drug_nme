@@ -1,6 +1,7 @@
 from .fetch import *
 from .plot import *
 from .target import *
+from .trials import *
 
 """
 Author: Tony E. Lin
@@ -12,7 +13,7 @@ import importlib
 
 __version__ = "0.1.2"
 
-_submodules = ["target", "fetch", "plot", "scrape"]
+_submodules = ["target", "fetch", "plot", "scrape", "trials"]
 
 
 # lazy import of modules

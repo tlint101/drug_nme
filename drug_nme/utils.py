@@ -1,6 +1,8 @@
 """
 Utility scripts
 """
+import re
+
 # pull approved ligands from GTP
 ligand_url = 'https://www.guidetopharmacology.org/services/ligands?type=Approved'
 
@@ -13,6 +15,61 @@ uniprot_query = 'https://rest.uniprot.org/uniprotkb/'
 # USFDA link
 FDA_LANDING = "https://www.fda.gov/drugs/drug-approvals-and-databases/compilation-cder-new-molecular-entity-nme-drug-and-new-biologic-approvals"
 DRUGS_FDA = f"https://www.fda.gov/drugs/novel-drug-approvals-fda/novel-drug-approvals"
+
+# pull data from ClinicalTrials.gov
+CTGOV = 'https://clinicaltrials.gov/api/v2/'
+
+# max records from ClinicalTrials.gov
+CTGOV_PAGE_SIZE = 1000
+
+# clinical trials requested fields
+TRIAL_FIELDS = ["NCTId", "BriefTitle", "OverallStatus", "Phase", "StudyType", "Condition", "InterventionName",
+                "InterventionType", "LeadSponsorName", "EnrollmentCount", "StartDate", "CompletionDate"]
+
+# valid enum values, from clinical trials
+TRIAL_STATUS = ['ACTIVE_NOT_RECRUITING', 'COMPLETED', 'ENROLLING_BY_INVITATION', 'NOT_YET_RECRUITING', 'RECRUITING',
+                'SUSPENDED', 'TERMINATED', 'WITHDRAWN', 'AVAILABLE', 'NO_LONGER_AVAILABLE',
+                'TEMPORARILY_NOT_AVAILABLE', 'APPROVED_FOR_MARKETING', 'WITHHELD', 'UNKNOWN']
+TRIAL_PHASES = ['NA', 'EARLY_PHASE1', 'PHASE1', 'PHASE2', 'PHASE3', 'PHASE4']
+TRIAL_TYPES = ['EXPANDED_ACCESS', 'INTERVENTIONAL', 'OBSERVATIONAL']
+
+# strip salts
+SALT_REMOVAL = [' sulfate', ' chloride', ' hydrochloride', ' sodium', ' potassium', ' mesylate', ' acetate',
+                ' maleate']
+
+
+def clean_drug_name(raw_name: str = None):
+    """
+    Clean an FDA active ingredient name so it can be matched against an external database. FDA names carry biologic
+    suffixes, salt forms, and combination products that will not match on a plain search, i.e. "tarlatamab-dlle"
+    becomes "tarlatamab" and "nirmatrelvir; ritonavir (co-packaged)" becomes "nirmatrelvir".
+
+    :param raw_name: str
+        The raw active ingredient name.
+    """
+    if not isinstance(raw_name, str) or not raw_name.strip():
+        return None
+
+    # strip hidden \xa0 space
+    name = raw_name.replace('\xa0', ' ').strip().lower()
+
+    # remove parentheses
+    name = re.sub(r'\(.*?\)', '', name).strip()
+
+    # keep first ingredient
+    if ' and ' in name or ',' in name or ';' in name:
+        name = name.replace(' and ', ',').replace(';', ',')
+        name = name.split(',')[0].strip()
+
+    # remove FDA biologic suffixes ("-abcd")
+    name = re.sub(r'-[a-z]{4}$', '', name)
+
+    # identify and remove potential salt name
+    for salt in SALT_REMOVAL:
+        if name.endswith(salt):
+            name = name.replace(salt, '')
+
+    return name.strip() or None
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
