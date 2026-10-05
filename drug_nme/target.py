@@ -6,17 +6,20 @@ import requests
 import pandas as pd
 from tqdm import tqdm
 from typing import Union, Optional
-from drug_nme.utils import GtoP, uniprot_query
+from drug_nme.utils import GtoP, uniprot_query, gtop_headers
 
 __all__ = ["Target"]
 
 
 class Target:
-    def __init__(self, uniprot_id: Optional[Union[str, list]] = None):
+    def __init__(self, uniprot_id: Optional[Union[str, list]] = None, api_key: str = None):
         """
         uniprot_id: Union[str, list]
             Set the UniprotID for target query.
+        api_key: str
+            A registered Guide to Pharmacology API key. If None, it is read from the GTOP_API_KEY environment variable.
         """
+        self.api_key = api_key
         # set link to Guide To Pharmacology
         self.GTOPDB = GtoP
         self.uniprot = uniprot_id
@@ -101,7 +104,7 @@ class Target:
         """
         # default database is UniProt, so we can query by UniProt ID like this
         url = f"{self.GTOPDB}/targets?accession={uniprot_id}"
-        response = requests.get(url)
+        response = requests.get(url, headers=gtop_headers(self.api_key))
         status_code = response.status_code
         target_data = response.json()  # target_data is list
 
@@ -122,7 +125,7 @@ class Target:
         Get data from Guide to Pharmacology API and place it in a dataframe.
         """
         url = f"{self.GTOPDB}/targets/{target_id}/databaseLinks?species=Human"
-        response = requests.get(url)
+        response = requests.get(url, headers=gtop_headers(self.api_key))
         status_code = response.status_code
         db_data = response.json()
 
