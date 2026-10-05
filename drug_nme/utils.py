@@ -1,6 +1,7 @@
 """
 Utility scripts
 """
+import os
 import re
 
 # pull approved ligands from GTP
@@ -8,6 +9,10 @@ ligand_url = 'https://www.guidetopharmacology.org/services/ligands?type=Approved
 
 # pull data from GTP
 GtoP = 'https://www.guidetopharmacology.org/services/'
+
+# Guide to Pharmacology API key, sent as a request header. GtoP asks that keys stay out of urls and published code
+GTOP_KEY_HEADER = 'GTP-API-Key'
+GTOP_KEY_ENV = 'GTOP_API_KEY'
 
 # pull data from uniprot
 uniprot_query = 'https://rest.uniprot.org/uniprotkb/'
@@ -32,6 +37,21 @@ TRIAL_STATUS = ['ACTIVE_NOT_RECRUITING', 'COMPLETED', 'ENROLLING_BY_INVITATION',
                 'TEMPORARILY_NOT_AVAILABLE', 'APPROVED_FOR_MARKETING', 'WITHHELD', 'UNKNOWN']
 TRIAL_PHASES = ['NA', 'EARLY_PHASE1', 'PHASE1', 'PHASE2', 'PHASE3', 'PHASE4']
 TRIAL_TYPES = ['EXPANDED_ACCESS', 'INTERVENTIONAL', 'OBSERVATIONAL']
+
+# kinase inhibitors that ChEMBL files under a non-kinase target, i.e. rapalogs act on mTOR through FKBP12
+KINASE_OVERRIDE = ['sirolimus', 'everolimus', 'temsirolimus']
+
+# USAN stems specific to kinase inhibitors, only used when ChEMBL has no data on a drug yet (recent approvals).
+# Plain "nib" is not used, it also matches IDH (-sidenib) and farnesyltransferase (-farnib) inhibitors, nor "-anib",
+# which covers any angiogenesis inhibitor, i.e. the aptamer pegaptanib
+KINASE_STEMS = ['tinib', 'ciclib', 'fenib', 'lisib', 'metinib', 'sertib', 'rolimus']
+
+# ChEMBL mechanism action types that count as inhibiting a kinase. Agonists, i.e. insulin on its receptor, do not
+KINASE_ACTIONS = ['INHIBITOR', 'ANTAGONIST', 'ALLOSTERIC ANTAGONIST', 'NEGATIVE ALLOSTERIC MODULATOR',
+                  'NEGATIVE MODULATOR', 'BLOCKER', 'INVERSE AGONIST', 'DEGRADER']
+
+# radioisotope labels on diagnostic tracers, i.e. "florquinitau F 18"
+RADIOLABEL = r'\s+(?:f|ga|tc|lu|i|cu|zr|in|y|ra|c|n|o|rb|tl|xe|sm|sr|ac|pb)[- ]?\d{1,3}m?$'
 
 # strip salts
 SALT_REMOVAL = [' sulfate', ' chloride', ' hydrochloride', ' sodium', ' potassium', ' mesylate', ' acetate',
@@ -64,12 +84,31 @@ def clean_drug_name(raw_name: str = None):
     # remove FDA biologic suffixes ("-abcd")
     name = re.sub(r'-[a-z]{4}$', '', name)
 
+    # remove radioisotope labels
+    name = re.sub(RADIOLABEL, '', name)
+
     # identify and remove potential salt name
     for salt in SALT_REMOVAL:
         if name.endswith(salt):
             name = name.replace(salt, '')
 
     return name.strip() or None
+
+def gtop_headers(api_key: str = None):
+    """
+    Build the request header for the Guide to Pharmacology API. The key given to the class wins, otherwise it is read
+    from the GTOP_API_KEY environment variable, so shared code does not need to hold the key.
+
+    :param api_key: str
+        A registered Guide to Pharmacology API key.
+    """
+    key = api_key or os.environ.get(GTOP_KEY_ENV)
+    if not key:
+        raise ValueError(f"Guide to Pharmacology requires an API key! Pass api_key= or set the {GTOP_KEY_ENV} "
+                         f"environment variable. Register at https://www.guidetopharmacology.org/webServices.jsp")
+
+    return {GTOP_KEY_HEADER: key}
+
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
