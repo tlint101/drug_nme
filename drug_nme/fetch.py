@@ -17,8 +17,15 @@ from io import BytesIO, StringIO
 from urllib.parse import urlparse
 from typing import Union
 from concurrent.futures import ThreadPoolExecutor
+from chembl_webresource_client.settings import Settings
+
+# turn off client cache
+Settings.Instance().CACHING = False
+# set max records to 1_000
+Settings.Instance().MAX_LIMIT = 1000
 from chembl_webresource_client.new_client import new_client
-from drug_nme.utils import ligand_url, FDA_LANDING, DRUGS_FDA, HEADERS, COL_TO_KEEP, NAMED_COLS, DRUG_OVERRIDE
+from drug_nme.utils import (ligand_url, FDA_LANDING, DRUGS_FDA, HEADERS, COL_TO_KEEP, NAMED_COLS, DRUG_OVERRIDE,
+                            KINASE_OVERRIDE, KINASE_ACTIONS, KINASE_STEMS, clean_drug_name, gtop_headers)
 
 __all__ = ["FDADataFetcher", "PharmacologyDataFetcher", "_ChemblDataFetcher"]
 
@@ -106,13 +113,18 @@ class _ChemblDataFetcher:  # todo process data pulled from ChEMBL
         return self.data
 
 
+#todo confirm GtP methods
 class PharmacologyDataFetcher:
-    def __init__(self, url: str = None):
+    def __init__(self, url: str = None, api_key: str = None):
         """
         :param url: str
             Can be a URL link to the JSON file or file path to JSON file on hard disk. If None, will default to Guide to
             Pharmacology json link.
+        :param api_key: str
+            A registered Guide to Pharmacology API key. If None, it is read from the GTOP_API_KEY environment variable.
         """
+        self.api_key = api_key
+
         # set link to Guide To Pharmacology
         if url is None:
             self.url = ligand_url
@@ -145,7 +157,7 @@ class PharmacologyDataFetcher:
         agency_list = [_check_agency_input(x) for x in agency]
 
         # Download JSON data
-        json_data = _download_json_with_progress(url, type='guide')
+        json_data = _download_json_with_progress(url, type='guide', headers=gtop_headers(self.api_key))
         json_df = pd.DataFrame(json_data)
 
         extraction_tables = []
@@ -194,34 +206,28 @@ class PharmacologyDataFetcher:
 
         return pd.DataFrame(processed_df)
 
-    def make_kinase_label(self, data: pd.DataFrame = None, label: str = 'Kinase'):
+    def make_kinase_label(self, data: pd.DataFrame = None, label: str = 'Kinase', pbar: bool = True):
         """
-        Relabel drugs as Kinase. Function currently tested for sources from GuideToPharmacology. The kinases are labeled
-        based on the suffix or unique names. This can be seen under the suffix list.
+        Relabel kinase inhibitors as Kinase. Each drug's mechanism of action is looked up on ChEMBL, and it is relabeled
+        if any of its targets is classified as a kinase. Drugs that act on a kinase indirectly are listed in
+        KINASE_OVERRIDE in utils.py.
         :param data: pd.DataFrame
             Input DataFrame obtained from GuidetoPharmacology.
         :param label: str
             New label. By default, it is "Kinase".
+        :param pbar: bool
+            Set progress bar.
         """
         if data is None:
             data = self.data
 
-        # string search
-        suffixes = ['nib', 'tib', 'lib', 'belumosudil', 'sirolimus', 'everolimus', 'midostaurin', 'netarsudil']
-
-        # Apply the function to the DataFrame
-        data['type'] = data.apply(lambda row: _check_suffix(row, suffixes, label), axis=1)
+        mask = _kinase_mask(data['name'], pbar=pbar)
+        data['type'] = np.where(mask, label, data['type'])
 
         return pd.DataFrame(data)
 
 
 """Support functions for Pharmacology data fetcher"""
-
-
-def _check_suffix(row, suffixes, replacement_string, col_name='name', col_output='type'):
-    if any(row[col_name].endswith(suffix) for suffix in suffixes):
-        return replacement_string
-    return row[col_output]
 
 
 def _check_agency_input(agency: str = None):
@@ -280,74 +286,65 @@ class FDADataFetcher:
         :return:
         """
 
-        global url_type, json_data, file_url, df, missing_years
-
         # Check input data as url or filepath
         if path is None:
             path = self.landing
 
+        # HEADERS to mimic a webpage
+        response = requests.get(path, headers=HEADERS)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        # look for link to data, from the current year back
         current_year = datetime.date.today().year
-        years = [(current_year - year) for year in range(5)]
+        link = None
+        for year in [(current_year - year) for year in range(5)]:
+            pattern = f"Compilation of CDER NME and New Biologic Approvals 1985-{year}"
+            link = soup.find('a', string=pattern)
+            if link:
+                break
 
-        for year in years:
-            try:
-                response = requests.get(path, headers=HEADERS)  # HEADERS to mimic a webpage
-                soup = BeautifulSoup(response.content, 'html.parser')
+        if link is None:
+            raise ConnectionError(f"No 'Compilation of CDER NME and New Biologic Approvals' link found on {path}. "
+                                  f"The FDA may have renamed the file.")
 
-                # look for link to data
-                pattern = f"Compilation of CDER NME and New Biologic Approvals 1985-{year}"
-                link = soup.find('a', string=pattern)
+        # look for url
+        file_url = link.get('href')
+        if not file_url.startswith('http'):
+            file_url = "https://www.fda.gov" + file_url
 
-                if link:
-                    file_url = link.get('href')
-                    link_text = link.get_text(strip=True)
+        # download file
+        file_response = requests.get(file_url, headers=HEADERS)
+        file_response.raise_for_status()
+        df = pd.read_excel(BytesIO(file_response.content))
 
-                    # look for url
-                    if not file_url.startswith('http'):
-                        file_url = "https://www.fda.gov" + file_url
+        # clean up col headers
+        df = df[COL_TO_KEEP]
+        df = df.rename(columns=NAMED_COLS)
+        df = df.rename(columns={'NDA/BLA': 'NME/BLA'})
 
-                    # download file
-                    file_response = requests.get(file_url, headers=HEADERS)
-                    file_response.raise_for_status()
-                    break
-            except requests.exceptions.RequestException as e:
-                print(f"ERROR: {e}")
+        # refactor NDA to NME
+        df['NME/BLA'] = df['NME/BLA'].replace('NDA', 'NME')
 
-        # convert downloaded data into df
-        missing_years = []
-        try:
-            df = pd.read_excel(file_url)
-
-            # clean up col headers
-            df = df[COL_TO_KEEP]
-            df = df.rename(columns=NAMED_COLS)
-            df = df.rename(columns={'NDA/BLA': 'NME/BLA'})
-
-            # refactor NDA to NME
-            df['NME/BLA'] = df['NME/BLA'].replace('NDA', 'NME')
-
-            # extract missing years
-            max_year = df['Approval Year'].max()
-            missing_years = [(current_year - year) for year in range(current_year - max_year)]
-            # # for debugging
-            # print(missing_years)
-        except Exception as e:
-            print(f"Data Download Error: {e}")
-
-        # get missing years from Drugs@FDA
+        # get years after the compilation from Drugs@FDA
+        max_year = df['Approval Year'].max()
+        missing_years = [(current_year - year) for year in range(current_year - max_year)]
         df2 = self._scrape_fda_drug_approvals(missing_years)
 
         # combine dfs
-        df = pd.concat([df2, df], ignore_index=True)
+        if not df2.empty:
+            df = pd.concat([df2, df], ignore_index=True)
         self.data = df
         return df
 
-    def add_types(self, data: pd.DataFrame = None) -> pd.DataFrame:
+    def add_types(self, data: pd.DataFrame = None, pbar: bool = True) -> pd.DataFrame:
         """
         Takes the dataframe from the get_data(), cleans the active ingredient names, and queries their data on ChEMBL
-        and append a 'Type' column.
+        and append a 'Type' column. ChEMBL is queried in batches, not one drug at a time.
         :param data: pd.DataFrame
             A dataframe from the get_data() function.
+        :param pbar: bool
+            Set progress bar.
         :return:
         """
         if data is None:
@@ -357,102 +354,34 @@ class FDADataFetcher:
             print("Error: 'Active Ingredient' column not found in dataframe.")
             return data
 
-        # multi threading
-        names_list = data['Active Ingredient'].tolist()
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            results = list(tqdm(executor.map(self._fetch_chembl_types, names_list),
-                                total=len(names_list), desc="Fetching Drug Types From ChEMBL"))
-        data['Type'] = results
+        molecules = _resolve_molecules(data['Active Ingredient'].dropna().unique().tolist(), pbar=pbar)
+        data['Type'] = data['Active Ingredient'].map(lambda raw: _molecule_type(raw, molecules))
 
         self.data = data
 
         return data
 
-    def make_kinase_label(self, data: pd.DataFrame = None, label: str = 'Kinase'):
+    def make_kinase_label(self, data: pd.DataFrame = None, label: str = 'Kinase', pbar: bool = True):
         """
-        Relabel drugs as Kinase. Function currently table pulled from the get_data() function. The kinases are labeled
-        based on the suffix or unique names. This can be seen under the suffix list.
+        Relabel kinase inhibitors as Kinase. Each drug's mechanism of action is looked up on ChEMBL, and it is relabeled
+        if any of its targets is classified as a kinase. Drugs that act on a kinase indirectly are listed in
+        KINASE_OVERRIDE in utils.py.
         :param data: pd.DataFrame
             Input DataFrame pulled from get_data() function.
         :param label: str
             New label. By default, it is "Kinase".
+        :param pbar: bool
+            Set progress bar.
         """
         if data is None:
             data = self.data
 
-        # set kinase pattern
-        salt_removal = [' sulfate', ' chloride', ' hydrochloride', ' sodium', ' potassium', ' mesylate', ' acetate',
-                        ' maleate']
-        kinase_stem = ['nib', 'tib', 'lib', 'belumosudil', 'sirolimus', 'everolimus', 'midostaurin', 'netarsudil']
-        pattern = r"(?:" + "|".join(kinase_stem) + r")(?:$|" + "|".join(salt_removal) + r")$"
-
-        # look for matches to patter, else keep original label
-        data['Type'] = np.where(data['Active Ingredient'].str.contains(pattern, regex=True, na=False), 'Kinase',
-                                data['Type'])
+        # Type only exists after add_types(), so start empty without it
+        existing = data['Type'] if 'Type' in data.columns else None
+        mask = _kinase_mask(data['Active Ingredient'], pbar=pbar)
+        data['Type'] = np.where(mask, label, existing)
 
         return data
-
-    def _fetch_chembl_types(self, raw_name):
-        """
-        Support function to clean the data from the FDA data from the get_data() function. This will add the drug type
-        from the ChEMBL database.
-        """
-        if pd.isna(raw_name) or not isinstance(raw_name, str):
-            return "Unknown"
-
-        # set chembl client
-        molecule_client = new_client.molecule
-
-        # # prep table
-        # clean_name = raw_name.strip().lower()
-
-        # strip hidden \xa0 space
-        clean_name = raw_name.replace('\xa0', ' ').strip().lower()
-
-        # add manual overrides for specific types not found in ChEMBL
-        if clean_name in DRUG_OVERRIDE:
-            return DRUG_OVERRIDE[clean_name]
-
-        # remove parentheses
-        clean_name = re.sub(r'\(.*?\)', '', clean_name).strip()
-
-        # handle name combinations
-        if ' and ' in clean_name or ',' in clean_name:
-            clean_name = clean_name.replace(' and ', ',')
-            clean_name = clean_name.split(',')[0].strip()
-
-        # remove FDA biologic suffixes ("-abcd")
-        clean_name = re.sub(r'-[a-z]{4}$', '', clean_name)
-
-        # identify adn remove potential salt name
-        salt_removal = [' sulfate', ' chloride', ' hydrochloride', ' sodium', ' potassium', ' mesylate', ' acetate',
-                        ' maleate']
-        for salt in salt_removal:
-            if clean_name.endswith(salt):
-                clean_name = clean_name.replace(salt, '')
-
-        # query ChEMBL
-        try:
-            # for exact name match
-            res = molecule_client.filter(pref_name__iexact=clean_name).only('molecule_type')
-            if len(res) > 0:
-                return res[0].get('molecule_type', 'Unknown')
-
-            # if name fail, try synonym
-            res_syn = molecule_client.filter(molecule_synonyms__molecule_synonym__iexact=clean_name).only(
-                'molecule_type')
-            if len(res_syn) > 0:
-                return res_syn[0].get('molecule_type', 'Unknown')
-
-            # if above fails, try partial matches (salt form)
-            res_partial = molecule_client.filter(pref_name__icontains=clean_name).only('molecule_type')
-            if len(res_partial) > 0:
-                return res_partial[0].get('molecule_type', 'Unknown')
-
-        except Exception as e:
-            return f"Error {e}"
-
-        return "Not Found in ChEMBL"
 
     @staticmethod
     def _extract_links_from_fda_drugname(table_provided):
@@ -539,6 +468,10 @@ class FDADataFetcher:
             # append to tables list
             tables.append(df)
 
+        # no missing years, or none could be scraped
+        if not tables:
+            return pd.DataFrame()
+
         # process df
         df_final = pd.concat(tables, ignore_index=True)
 
@@ -558,7 +491,7 @@ The following are support functions for the FDA and Pharmacology Classes above
 """
 
 
-def _download_json_with_progress(url, type: str = None):
+def _download_json_with_progress(url, type: str = None, headers: dict = None):
     """
     Support function to download the json file and add a progress bar.
     :param url: str
@@ -570,7 +503,9 @@ def _download_json_with_progress(url, type: str = None):
 
     if type == 'guide':
         # Send a GET request to the URL
-        response = requests.get(url, stream=True)
+        response = requests.get(url, stream=True, headers=headers)
+        if response.status_code != 200:
+            raise ConnectionError(f"Guide to Pharmacology returned status code {response.status_code}: {response.text}")
 
         # Get the total file size from the headers
         total_size = int(response.headers.get('content-length', 0))
@@ -645,6 +580,178 @@ def _clean_fda_json(filepath: str = None):
     json_data = json.loads(byte_data.decode('utf-8'))
 
     return json_data
+
+
+def _kinase_mask(names: pd.Series, pbar: bool = True):
+    """
+    Support function to flag small molecule kinase inhibitors in a column of drug names. ChEMBL is queried in batches,
+    one request per ~400 drugs, rather than one request per drug. Mechanisms are stored against the parent molecule, so
+    a salt form is resolved to its parent first. Drugs ChEMBL has no data on yet fall back to the name stem.
+    """
+    unique = names.dropna().unique().tolist()
+    progress = tqdm(total=4, desc="Fetching Mechanisms From ChEMBL in Batches", disable=not pbar)
+
+    molecules = {raw: row for raw, row in _resolve_molecules(unique, pbar=False).items() if row}
+    progress.update()
+
+    # mechanisms of the small molecules
+    parents = {key: (row.get('molecule_hierarchy') or {}).get('parent_chembl_id') or row['molecule_chembl_id']
+               for key, row in molecules.items() if row.get('molecule_type') == 'Small molecule'}
+    mechanisms = {}
+    fields = ('parent_molecule_chembl_id', 'target_chembl_id', 'action_type', 'mechanism_of_action')
+    for row in _chembl_batch(new_client.mechanism, 'parent_molecule_chembl_id__in', set(parents.values()), fields):
+        mechanisms.setdefault(row['parent_molecule_chembl_id'], []).append(row)
+    progress.update()
+
+    # targets of the inhibitory mechanisms that are classified as kinases
+    target_ids = {row['target_chembl_id'] for rows in mechanisms.values() for row in rows
+                  if row.get('action_type') in KINASE_ACTIONS and row.get('target_chembl_id')}
+    kinase_targets = _kinase_targets(target_ids)
+    progress.update()
+
+    def is_kinase(raw):
+        name = clean_drug_name(raw)
+        if not name:
+            return False
+        if name in KINASE_OVERRIDE:
+            return True
+
+        # not in ChEMBL yet, fall back to the name stem
+        if raw not in molecules:
+            return name.endswith(tuple(KINASE_STEMS))
+
+        # biologics are skipped, so antibodies against kinase receptors are not labeled
+        if raw not in parents:
+            return False
+
+        # in ChEMBL but not curated yet, fall back to the name stem
+        rows = mechanisms.get(parents[raw], [])
+        if not rows:
+            return name.endswith(tuple(KINASE_STEMS))
+
+        # "kinase" in the mechanism text catches PI3K inhibitors, which ChEMBL classifies as a transferase. The target
+        # check catches mechanisms named without the word, i.e. "Platelet-derived growth factor receptor beta inhibitor"
+        return any(row.get('action_type') in KINASE_ACTIONS and
+                   ('kinase' in (row.get('mechanism_of_action') or '').lower() or
+                    row.get('target_chembl_id') in kinase_targets) for row in rows)
+
+    results = {raw: is_kinase(raw) for raw in unique}
+    progress.update()
+    progress.close()
+
+    return names.map(results).fillna(False).astype(bool)
+
+
+def _kinase_targets(target_ids):
+    """
+    Support function to find which ChEMBL targets are classified as kinases. Each target's protein classification is
+    walked up the tree, one batched request per level, until it reaches the root.
+    """
+    targets = _chembl_batch(new_client.target, 'target_chembl_id__in', target_ids,
+                            ('target_chembl_id', 'target_components'))
+    component_ids = {item['component_id'] for target in targets for item in target.get('target_components', [])}
+    components = _chembl_batch(new_client.target_component, 'component_id__in', component_ids,
+                               ('component_id', 'protein_classifications'))
+    leaves = {item['component_id']: [cls['protein_classification_id'] for cls in item.get('protein_classifications', [])]
+              for item in components}
+
+    # pull the classification tree, one level per request
+    parent_of, kinase_id = {}, None
+    todo = {class_id for ids in leaves.values() for class_id in ids}
+    seen = set(todo)
+    while todo:
+        for row in _chembl_batch(new_client.protein_classification, 'protein_class_id__in', todo,
+                                 ('protein_class_id', 'parent_id', 'pref_name')):
+            parent_of[row['protein_class_id']] = row.get('parent_id')
+            if row['pref_name'] == 'Kinase':
+                kinase_id = row['protein_class_id']
+        todo = {parent for parent in parent_of.values() if parent and parent not in seen}
+        seen |= todo
+
+    def under_kinase(class_id):
+        while class_id:
+            if class_id == kinase_id:
+                return True
+            class_id = parent_of.get(class_id)
+        return False
+
+    return {target['target_chembl_id'] for target in targets
+            if any(under_kinase(class_id) for item in target.get('target_components', [])
+                   for class_id in leaves.get(item['component_id'], []))}
+
+
+def _chembl_batch(resource, field: str, values, fields: tuple, size: int = 400):
+    """
+    Support function to query a ChEMBL resource for many values at once, i.e. pref_name__in, in chunks of 400. A failed
+    chunk is skipped and printed, so its drugs fall back to the name stem rather than stopping the whole run.
+    """
+    values = sorted(values)
+    rows = []
+    for i in range(0, len(values), size):
+        try:
+            rows += list(resource.filter(**{field: values[i:i + size]}).only(*fields))
+        except Exception as e:
+            print(f"ChEMBL batch request failed for {field}: {e}")
+    return rows
+
+
+def _resolve_molecules(raw_names: list, pbar: bool = True):
+    """
+    Support function to match drug names to ChEMBL molecules, shared by add_types() and make_kinase_label() so both
+    agree on which record a drug is. Names are cleaned, matched in batches on the ChEMBL preferred name (uppercase),
+    and the misses are tried one at a time by synonym, then by partial name.
+    :return: dict of raw name to the ChEMBL molecule record, or None if not found.
+    """
+    keys = {raw: (clean_drug_name(raw) or '').upper() for raw in raw_names}
+    wanted = sorted({key for key in keys.values() if key})
+
+    fields = ('molecule_chembl_id', 'pref_name', 'molecule_type', 'molecule_hierarchy')
+    found = {row['pref_name']: row for row in _chembl_batch(new_client.molecule, 'pref_name__in', wanted, fields)}
+
+    missing = [key for key in wanted if key not in found]
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        rows = tqdm(executor.map(_find_molecule, missing), total=len(missing),
+                    desc="Fetching Drug Types From ChEMBL in Batches", disable=not pbar)
+        for key, row in zip(missing, rows):
+            if row:
+                found[key] = row
+
+    return {raw: found.get(key) for raw, key in keys.items()}
+
+
+def _find_molecule(name):
+    """
+    Support function to match one drug name that is not a ChEMBL preferred name, by synonym, then by partial name
+    (i.e. a salt form).
+    """
+    fields = ('molecule_chembl_id', 'pref_name', 'molecule_type', 'molecule_hierarchy')
+    try:
+        for lookup in ('molecule_synonyms__molecule_synonym__iexact', 'pref_name__icontains'):
+            res = new_client.molecule.filter(**{lookup: name}).only(*fields)
+            if len(res) > 0:
+                return res[0]
+    except Exception as e:
+        print(f"Error matching {name} on ChEMBL: {e}")
+    return None
+
+
+def _molecule_type(raw_name, molecules: dict):
+    """
+    Support function to get the molecule type of a drug. Manual overrides are checked on the raw name, before any
+    cleaning.
+    """
+    if not isinstance(raw_name, str):
+        return "Unknown"
+
+    raw_key = raw_name.replace('\xa0', ' ').strip().lower()
+    if raw_key in DRUG_OVERRIDE:
+        return DRUG_OVERRIDE[raw_key]
+
+    row = molecules.get(raw_name)
+    if row is None:
+        return "Not Found in ChEMBL"
+
+    return row.get('molecule_type') or 'Unknown'
 
 
 def _infer_ingredient_type(ingredient):
