@@ -9,8 +9,6 @@ dependencies:
   - pip:
       - pandas
       - tqdm
-      - tabula-py
-      - JPype1
       - matplotlib
       - seaborn
       - legendkit
