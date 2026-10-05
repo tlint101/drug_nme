@@ -1,7 +1,8 @@
+import os
 import pytest
 import pandas as pd
 from drug_nme import FDADataFetcher, PharmacologyDataFetcher, TrialsFetcher
-from drug_nme.utils import clean_drug_name
+from drug_nme.utils import clean_drug_name, gtop_headers
 
 
 def test_fda_download():
@@ -15,6 +16,7 @@ def test_fda_download():
     assert 'Active Ingredient' in df.columns, "FDA DataFrame is missing expected columns"
 
 
+@pytest.mark.skipif(not os.environ.get('GTOP_API_KEY'), reason='GTOP_API_KEY is not set')
 def test_gtp_download():
     # verify Guide to Pharmacology
     extract = PharmacologyDataFetcher()
@@ -72,7 +74,33 @@ def test_clean_drug_name():
     assert clean_drug_name('imatinib mesylate') == 'imatinib'
     assert clean_drug_name('nirmatrelvir; ritonavir (co-packaged)') == 'nirmatrelvir'
     assert clean_drug_name('calcitonin (human)') == 'calcitonin'
+    assert clean_drug_name('florquinitau F 18') == 'florquinitau'
+    assert clean_drug_name('technetium Tc 99m') == 'technetium'
     assert clean_drug_name(None) is None
+
+
+def test_gtop_headers(monkeypatch):
+    # verify the Guide to Pharmacology key is taken from the class first, then the environment
+    monkeypatch.setenv('GTOP_API_KEY', 'env-key')
+    assert gtop_headers('class-key') == {'GTP-API-Key': 'class-key'}
+    assert gtop_headers() == {'GTP-API-Key': 'env-key'}
+
+    monkeypatch.delenv('GTOP_API_KEY')
+    with pytest.raises(ValueError):
+        gtop_headers()
+
+
+def test_kinase_label():
+    # verify kinase inhibitors are labeled from their ChEMBL mechanism, not their name
+    kinase = ['imatinib mesylate', 'tofacitinib citrate', 'alpelisib', 'sirolimus', 'netarsudil', 'zongertinib']
+    other = ['vorasidenib', 'lonafarnib', 'pembrolizumab', 'trastuzumab', 'insulin icodec-abae']
+    df = pd.DataFrame({'Active Ingredient': kinase + other, 'Type': 'Small molecule'})
+    data = FDADataFetcher().make_kinase_label(data=df, pbar=False)
+
+    # ASSERTIONS:
+    labels = dict(zip(data['Active Ingredient'], data['Type']))
+    assert all(labels[name] == 'Kinase' for name in kinase), f"Kinase inhibitors were missed: {labels}"
+    assert all(labels[name] == 'Small molecule' for name in other), f"Non-kinase drugs were relabeled: {labels}"
 
 
 if __name__ == "__main__":
