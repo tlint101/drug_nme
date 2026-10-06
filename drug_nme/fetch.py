@@ -27,10 +27,10 @@ from chembl_webresource_client.new_client import new_client
 from drug_nme.utils import (ligand_url, FDA_LANDING, DRUGS_FDA, HEADERS, COL_TO_KEEP, NAMED_COLS, DRUG_OVERRIDE,
                             KINASE_OVERRIDE, KINASE_ACTIONS, KINASE_STEMS, clean_drug_name, gtop_headers)
 
-__all__ = ["FDADataFetcher", "PharmacologyDataFetcher", "_ChemblDataFetcher"]
+__all__ = ["FDADataFetcher", "PharmacologyDataFetcher", "ChemblDataFetcher"]
 
 
-class _ChemblDataFetcher:  # todo process data pulled from ChEMBL
+class ChemblDataFetcher:  # todo process data pulled from ChEMBL
     def __init__(self):
         # Initialize the ChEMBL molecule client
         self.chembl_client = new_client.molecule
